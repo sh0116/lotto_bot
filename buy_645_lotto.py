@@ -3,8 +3,9 @@ import time
 from playwright.sync_api import Playwright, sync_playwright
 
 # 구매할 게임 수
-COUNT = 1
+COUNT = 5
 
+# 5(5천원) 게임 자동 구매
 def run(playwright: Playwright):
     # 동행복권 아이디와 패스워드를 설정
     user_id = os.environ.get("LOTTO_ID")
