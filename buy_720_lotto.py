@@ -11,7 +11,7 @@ def run(playwright: Playwright):
         raise ValueError("환경변수 LOTTO_ID, LOTTO_PW가 설정되지 않았습니다.")
 
     # 브라우저 열기
-    browser = playwright.chromium.launch(headless=False)  # headless=False → 창 보이기
+    browser = playwright.chromium.launch(headless=True)  # headless=False → 창 보이기
     context = browser.new_context()
     page = context.new_page()
 
