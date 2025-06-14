@@ -24,4 +24,7 @@ jobs:
           playwright install
 
       - name: Run lotto bot
+        env: 
+          LOTTO_ID: ${{ secrets.LOTTO_ID }}
+          LOTTO_PW: ${{ secrets.LOTTO_PW }}
         run: python buy_720_lotto.py
