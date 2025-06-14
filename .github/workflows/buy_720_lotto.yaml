@@ -1,0 +1,27 @@
+name: Buy 720 Lotto Every friday
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # 한국 시간 매주 금요일 오전 8시 (UTC 목요일 23시 기준)
+  workflow_dispatch:     # 수동 실행도 가능하게
+
+jobs:
+  buy-lotto:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install
+
+      - name: Run lotto bot
+        run: python buy_720_lotto.py
