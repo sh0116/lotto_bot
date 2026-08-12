@@ -34,11 +34,18 @@ body {
     linear-gradient(180deg, #0d1114 0%, var(--night) 44%, #111816 100%);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
+  cursor: crosshair;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+a,
+button,
+input {
+  cursor: pointer;
 }
 
 button,
@@ -63,6 +70,13 @@ input {
   background: rgba(16, 20, 23, 0.72);
   backdrop-filter: blur(18px);
   box-shadow: 0 14px 50px rgba(0, 0, 0, 0.2);
+  transition: opacity 260ms ease, transform 260ms ease;
+}
+
+.nav-hidden .topbar {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-110%);
 }
 
 .brand {
@@ -82,6 +96,7 @@ input {
   background: radial-gradient(circle at 35% 30%, #fff2b6 0 12%, var(--gold) 13% 58%, #a86c10 100%);
   font-weight: 900;
   box-shadow: 0 0 26px rgba(244, 184, 66, 0.42);
+  animation: warm-pulse 3.8s ease-in-out infinite;
 }
 
 .brand strong,
@@ -122,6 +137,7 @@ input {
   color: var(--text);
   background: rgba(245, 241, 232, 0.08);
   outline: none;
+  transform: translateY(-1px);
 }
 
 .hero {
@@ -200,6 +216,7 @@ input {
   border-radius: 8px;
   background: rgba(16, 20, 23, 0.58);
   box-shadow: inset 0 0 34px rgba(244, 184, 66, 0.08);
+  transform: translateZ(0);
 }
 
 .hero-readout span,
@@ -227,6 +244,13 @@ input {
   border-radius: 8px;
   background: rgba(16, 20, 23, 0.72);
   box-shadow: var(--shadow);
+  transition: transform 220ms ease, border-color 220ms ease, background 220ms ease;
+}
+
+.draw-console:hover {
+  border-color: rgba(94, 240, 178, 0.36);
+  background: rgba(16, 20, 23, 0.82);
+  transform: translateY(-3px);
 }
 
 .console-label,
@@ -260,6 +284,12 @@ input {
     radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.9) 0 10%, transparent 11%),
     var(--ball-color);
   transform: translateY(0);
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.ball:hover {
+  filter: brightness(1.12);
+  transform: translateY(-3px) scale(1.04);
 }
 
 .ball.roll {
@@ -280,10 +310,19 @@ input {
   background: rgba(94, 240, 178, 0.13);
   cursor: pointer;
   font-weight: 900;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
 .button.glow {
   box-shadow: 0 0 26px rgba(94, 240, 178, 0.13);
+}
+
+.button:hover,
+.button:focus-visible {
+  background: rgba(94, 240, 178, 0.2);
+  box-shadow: 0 0 36px rgba(94, 240, 178, 0.22);
+  outline: none;
+  transform: translateY(-2px);
 }
 
 .section {
@@ -374,10 +413,17 @@ h2 {
 .scale-track span {
   position: absolute;
   inset: 0 auto 0 0;
-  width: max(var(--fill), 3px);
+  width: 0;
   border-radius: inherit;
   background: var(--accent);
   box-shadow: 0 0 24px var(--accent);
+  transition: width 950ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.scale-section.is-visible .scale-track span,
+.scale-board.is-visible .scale-track span,
+.scale-row.is-visible .scale-track span {
+  width: max(var(--fill), 3px);
 }
 
 .lab-section {
@@ -409,6 +455,13 @@ h2 {
   border-radius: 8px;
   background: rgba(16, 20, 23, 0.58);
   box-shadow: var(--shadow);
+  transition: transform 260ms ease, border-color 260ms ease;
+}
+
+.chart-stage:hover,
+.instrument:hover {
+  border-color: rgba(245, 241, 232, 0.28);
+  transform: translateY(-2px);
 }
 
 .chart-head {
@@ -488,6 +541,10 @@ input[type="range"] {
   width: 100%;
 }
 
+input[type="range"]:hover {
+  filter: brightness(1.18);
+}
+
 input[type="number"] {
   width: 100%;
   min-height: 46px;
@@ -546,6 +603,7 @@ input[type="number"] {
   border-radius: inherit;
   background: linear-gradient(90deg, var(--gold), var(--mint));
   box-shadow: 0 0 26px rgba(94, 240, 178, 0.5);
+  transition: width 420ms ease;
 }
 
 .summary-grid {
@@ -588,6 +646,17 @@ dd {
   line-height: 1.7;
 }
 
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 720ms ease, transform 720ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 @keyframes roll-in {
   0% {
     opacity: 0;
@@ -602,6 +671,15 @@ dd {
   }
 }
 
+@keyframes warm-pulse {
+  0%, 100% {
+    box-shadow: 0 0 22px rgba(244, 184, 66, 0.34);
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(244, 184, 66, 0.58);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -609,6 +687,21 @@ dd {
 
   .ball.roll {
     animation: none;
+  }
+
+  .brand-mark {
+    animation: none;
+  }
+
+  .reveal,
+  .button,
+  .ball,
+  .chart-stage,
+  .instrument,
+  .draw-console,
+  .scale-track span,
+  .meter span {
+    transition: none;
   }
 }
 
