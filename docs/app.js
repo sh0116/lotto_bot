@@ -27,6 +27,7 @@ let drawMeta = {
   firstRound: FALLBACK_DRAWS.at(-1)?.round,
   lastRound: FALLBACK_DRAWS[0]?.round,
   sourceLabel: "내장 샘플",
+  latestDraw: FALLBACK_DRAWS[0],
 };
 
 function formatNumber(value) {
@@ -82,20 +83,23 @@ async function loadDraws() {
     if (!Array.isArray(payload.draws) || payload.draws.length === 0) {
       throw new Error("draws.json에 회차 데이터가 없습니다.");
     }
+    const sortedDraws = [...payload.draws].sort((a, b) => b.round - a.round);
     drawMeta = {
       drawCount: payload.drawCount || payload.draws.length,
       firstRound: payload.firstRound,
       lastRound: payload.lastRound,
       sourceLabel: payload.sourceLabel || "정적 데이터",
       generatedAt: payload.generatedAt,
+      latestDraw: sortedDraws[0],
     };
-    return [...payload.draws].sort((a, b) => b.round - a.round);
+    return sortedDraws;
   } catch (error) {
     drawMeta = {
       drawCount: FALLBACK_DRAWS.length,
       firstRound: FALLBACK_DRAWS.at(-1)?.round,
       lastRound: FALLBACK_DRAWS[0]?.round,
       sourceLabel: "내장 샘플",
+      latestDraw: FALLBACK_DRAWS[0],
     };
     return FALLBACK_DRAWS;
   }
@@ -115,6 +119,28 @@ function renderDataBadge() {
   const last = drawMeta.lastRound ? `${drawMeta.lastRound}` : "?";
   badge.textContent =
     `${first}-${last}회 · ${formatNumber(drawMeta.drawCount)}회차 데이터 · ${drawMeta.sourceLabel}`;
+}
+
+function renderLatestDraw() {
+  const root = document.querySelector("#latestDraw");
+  const draw = drawMeta.latestDraw;
+  if (!draw) {
+    root.hidden = true;
+    return;
+  }
+  const dateText = draw.date ? ` · ${draw.date}` : "";
+  root.hidden = false;
+  root.innerHTML = `
+    <div>
+      <span>가장 최근 당첨번호</span>
+      <strong>${draw.round}회${dateText}</strong>
+    </div>
+    <div class="latest-balls">
+      ${draw.numbers.map((number) => ballHtml(number)).join("")}
+      <span class="bonus-label">+</span>
+      ${ballHtml(draw.bonus)}
+    </div>
+  `;
 }
 
 function renderRankList(selector, rows, mode) {
@@ -332,6 +358,7 @@ async function init() {
   const draws = await loadDraws();
   stats = buildStats(draws);
   renderDataBadge();
+  renderLatestDraw();
   renderNumbers(pickNumbers(stats), false);
   renderHistory(stats);
   updateSimulator();
@@ -363,6 +390,7 @@ async function init() {
 
   window.addEventListener("resize", () => {
     drawHero(document.querySelector("#heroCanvas"), performance.now());
+    clearTooltip();
     drawDistribution(distributionCanvas);
   });
   window.addEventListener("pointermove", (event) => {
