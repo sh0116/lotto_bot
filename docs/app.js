@@ -1,9 +1,5 @@
 const ODDS = {
   jackpot: 8145060,
-  second: 1357510,
-  third: 35724,
-  fourth: 733,
-  fifth: 45,
 };
 
 const SAMPLE_DRAWS = [
@@ -21,7 +17,10 @@ const SAMPLE_DRAWS = [
   { round: 1225, numbers: [3, 12, 19, 24, 33, 42], bonus: 16 },
 ];
 
-const palette = ["#b78018", "#1e5c96", "#cc3f6a", "#5a6978", "#0d7f68"];
+const COLORS = ["#f4b842", "#54a6ff", "#ff6f61", "#aa7dff", "#5ef0b2", "#7d8791"];
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let stats = [];
+let hoveredNumber = null;
 
 function formatNumber(value) {
   return new Intl.NumberFormat("ko-KR").format(value);
@@ -35,8 +34,12 @@ function ballClass(number) {
   return "c5";
 }
 
+function ballHtml(number, animate = false) {
+  return `<span class="ball ${ballClass(number)} ${animate ? "roll" : ""}">${String(number).padStart(2, "0")}</span>`;
+}
+
 function buildStats(draws) {
-  const stats = Array.from({ length: 45 }, (_, index) => ({
+  const rows = Array.from({ length: 45 }, (_, index) => ({
     number: index + 1,
     frequency: 0,
     lastSeenAgo: draws.length,
@@ -45,126 +48,192 @@ function buildStats(draws) {
 
   draws.forEach((draw, drawIndex) => {
     draw.numbers.forEach((number) => {
-      const item = stats[number - 1];
-      item.frequency += 1;
-      item.lastSeenAgo = Math.min(item.lastSeenAgo, drawIndex);
+      const row = rows[number - 1];
+      row.frequency += 1;
+      row.lastSeenAgo = Math.min(row.lastSeenAgo, drawIndex);
     });
   });
 
-  const maxFrequency = Math.max(...stats.map((item) => item.frequency), 1);
-  const maxAgo = Math.max(...stats.map((item) => item.lastSeenAgo), 1);
+  const maxFrequency = Math.max(...rows.map((row) => row.frequency), 1);
+  const maxAgo = Math.max(...rows.map((row) => row.lastSeenAgo), 1);
 
-  stats.forEach((item) => {
-    const frequencySignal = item.frequency / maxFrequency;
-    const overdueSignal = item.lastSeenAgo / maxAgo;
-    const wobble = Math.abs(Math.sin(item.number * 12.9898)) * 0.16;
-    item.score = Math.round((frequencySignal * 0.46 + overdueSignal * 0.38 + wobble) * 100);
+  rows.forEach((row) => {
+    const frequencySignal = row.frequency / maxFrequency;
+    const overdueSignal = row.lastSeenAgo / maxAgo;
+    const wobble = Math.abs(Math.sin(row.number * 12.9898)) * 0.18;
+    row.score = Math.round((frequencySignal * 0.44 + overdueSignal * 0.38 + wobble) * 100);
   });
 
-  return stats;
+  return rows;
 }
 
-function pickNumbers(stats) {
-  return [...stats]
+function pickNumbers(rows) {
+  return [...rows]
     .sort((a, b) => b.score - a.score || a.number - b.number)
     .slice(0, 6)
-    .map((item) => item.number)
+    .map((row) => row.number)
     .sort((a, b) => a - b);
 }
 
-function renderBalls(numbers) {
-  const root = document.querySelector("#suggestedNumbers");
-  root.innerHTML = numbers
-    .map((number) => `<span class="ball ${ballClass(number)}">${String(number).padStart(2, "0")}</span>`)
-    .join("");
+function renderNumbers(numbers, animate = false) {
+  document.querySelector("#heroNumbers").innerHTML = numbers.map((number) => ballHtml(number, animate)).join("");
+  document.querySelector("#suggestedNumbers").innerHTML = numbers.map((number) => ballHtml(number, animate)).join("");
 }
 
-function renderSignals(stats) {
-  const root = document.querySelector("#signalList");
-  root.innerHTML = [...stats]
-    .sort((a, b) => b.score - a.score || a.number - b.number)
-    .slice(0, 8)
-    .map((item) => {
-      return `
-        <div class="signal-item">
-          <span class="ball ${ballClass(item.number)}">${String(item.number).padStart(2, "0")}</span>
-          <div class="signal-bar"><span style="width: ${Math.min(item.score, 100)}%"></span></div>
-          <strong>${item.score}</strong>
-        </div>
-      `;
-    })
-    .join("");
-}
-
-function drawHero(canvas, stats) {
+function drawHero(canvas, time = 0) {
   const ctx = canvas.getContext("2d");
-  const width = canvas.width;
-  const height = canvas.height;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.floor(rect.width * dpr));
+  const height = Math.max(1, Math.floor(rect.height * dpr));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#f6faf7";
+  ctx.fillStyle = "#0d1114";
   ctx.fillRect(0, 0, width, height);
 
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const radius = Math.min(width, height) * 0.34;
+  const cx = width * 0.68;
+  const cy = height * 0.44;
+  const base = Math.min(width, height) * 0.23;
 
-  stats.forEach((item, index) => {
-    const angle = (index / stats.length) * Math.PI * 2 - Math.PI / 2;
-    const distance = radius * (0.7 + item.score / 280);
-    const x = centerX + Math.cos(angle) * distance;
-    const y = centerY + Math.sin(angle) * distance;
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  for (let ring = 1; ring <= 5; ring += 1) {
     ctx.beginPath();
-    ctx.fillStyle = palette[index % palette.length];
-    ctx.globalAlpha = 0.58 + item.score / 260;
-    ctx.arc(x, y, 6 + item.score / 18, 0, Math.PI * 2);
+    ctx.strokeStyle = COLORS[ring % COLORS.length];
+    ctx.lineWidth = Math.max(1, 1.4 * dpr);
+    ctx.arc(cx, cy, base + ring * 42 * dpr, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  for (let i = 0; i < 45; i += 1) {
+    const drift = reducedMotion ? 0 : time * (0.00014 + (i % 7) * 0.00001);
+    const angle = (i / 45) * Math.PI * 2 + drift;
+    const wave = reducedMotion ? 0 : Math.sin(time * 0.001 + i) * 12 * dpr;
+    const radius = base + (i % 5) * 35 * dpr + wave;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    const size = (7 + (stats[i]?.score || 40) / 16) * dpr;
+
+    const gradient = ctx.createRadialGradient(x - size * 0.3, y - size * 0.4, size * 0.2, x, y, size);
+    gradient.addColorStop(0, "#fff9d7");
+    gradient.addColorStop(0.22, COLORS[i % COLORS.length]);
+    gradient.addColorStop(1, "rgba(0,0,0,0.38)");
+    ctx.beginPath();
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = COLORS[i % COLORS.length];
+    ctx.shadowBlur = 18 * dpr;
+    ctx.arc(x, y, size, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  if (rect.width > 720) {
+    ctx.shadowBlur = 0;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(245,241,232,0.92)";
+    ctx.font = `${Math.round(18 * dpr)}px system-ui`;
+    ctx.fillText("one ticket", cx, cy - 28 * dpr);
+    ctx.fillStyle = "#f4b842";
+    ctx.font = `900 ${Math.round(48 * dpr)}px system-ui`;
+    ctx.fillText("1 : 8,145,060", cx, cy + 20 * dpr);
+  }
+}
+
+function animateHero(time) {
+  drawHero(document.querySelector("#heroCanvas"), time);
+  if (!reducedMotion) requestAnimationFrame(animateHero);
+}
+
+function drawDistribution(canvas) {
+  const ctx = canvas.getContext("2d");
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.floor(rect.width * dpr));
+  const height = Math.max(1, Math.floor(rect.height * dpr));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  const padL = 46 * dpr;
+  const padR = 18 * dpr;
+  const padT = 24 * dpr;
+  const padB = 38 * dpr;
+  const chartW = width - padL - padR;
+  const chartH = height - padT - padB;
+  const maxFrequency = Math.max(...stats.map((row) => row.frequency), 1);
+  const barW = chartW / 45;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "rgba(245,241,232,0.025)";
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "rgba(245,241,232,0.13)";
+  ctx.lineWidth = 1 * dpr;
+  for (let i = 0; i <= 4; i += 1) {
+    const y = padT + (chartH / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(width - padR, y);
+    ctx.stroke();
+  }
+
+  stats.forEach((row, index) => {
+    const active = hoveredNumber === null || hoveredNumber === row.number;
+    const x = padL + index * barW + 2 * dpr;
+    const barH = Math.max(5 * dpr, (row.frequency / maxFrequency) * chartH);
+    const y = padT + chartH - barH;
+    ctx.globalAlpha = active ? 1 : 0.23;
+    ctx.fillStyle = COLORS[index % COLORS.length];
+    ctx.shadowColor = COLORS[index % COLORS.length];
+    ctx.shadowBlur = hoveredNumber === row.number ? 18 * dpr : 0;
+    ctx.fillRect(x, y, Math.max(3 * dpr, barW - 4 * dpr), barH);
   });
 
   ctx.globalAlpha = 1;
-  ctx.fillStyle = "#16211f";
-  ctx.font = "700 28px system-ui";
-  ctx.textAlign = "center";
-  ctx.fillText("Independent", centerX, centerY - 8);
-  ctx.font = "600 16px system-ui";
-  ctx.fillStyle = "#64706d";
-  ctx.fillText("but visually tempting", centerX, centerY + 22);
-}
-
-function drawDistribution(canvas, stats) {
-  const ctx = canvas.getContext("2d");
-  const width = canvas.width;
-  const height = canvas.height;
-  const padding = 42;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-  const max = Math.max(...stats.map((item) => item.frequency), 1);
-
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = "#d8e1dc";
-  ctx.beginPath();
-  ctx.moveTo(padding, padding);
-  ctx.lineTo(padding, height - padding);
-  ctx.lineTo(width - padding, height - padding);
-  ctx.stroke();
-
-  const barWidth = chartWidth / 45;
-  stats.forEach((item, index) => {
-    const barHeight = (item.frequency / max) * chartHeight;
-    const x = padding + index * barWidth + 1;
-    const y = height - padding - barHeight;
-    ctx.fillStyle = palette[index % palette.length];
-    ctx.fillRect(x, y, Math.max(3, barWidth - 2), barHeight);
-  });
-
-  ctx.fillStyle = "#64706d";
-  ctx.font = "600 12px system-ui";
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(245,241,232,0.64)";
+  ctx.font = `700 ${Math.round(12 * dpr)}px system-ui`;
   ctx.textAlign = "center";
   [1, 10, 20, 30, 40, 45].forEach((number) => {
-    const x = padding + (number - 0.5) * barWidth;
-    ctx.fillText(String(number), x, height - 14);
+    const x = padL + (number - 0.5) * barW;
+    ctx.fillText(String(number), x, height - 12 * dpr);
   });
+}
+
+function updateTooltip(event) {
+  const canvas = document.querySelector("#distributionCanvas");
+  const tooltip = document.querySelector("#chartTooltip");
+  const label = document.querySelector("#selectedNumberLabel");
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const ratio = x / rect.width;
+  const number = Math.min(45, Math.max(1, Math.ceil(ratio * 45)));
+  const row = stats[number - 1];
+
+  hoveredNumber = number;
+  label.textContent = `${number}번`;
+  tooltip.hidden = false;
+  tooltip.style.left = `${Math.min(event.clientX - rect.left + 18, rect.width - 170)}px`;
+  tooltip.style.top = `${Math.max(18, event.clientY - rect.top - 42)}px`;
+  tooltip.innerHTML = `
+    <strong>${number}번</strong><br>
+    출현 ${row.frequency}회<br>
+    최근 공백 ${row.lastSeenAgo}회차<br>
+    장난감 신호 ${row.score}
+  `;
+  drawDistribution(canvas);
+}
+
+function clearTooltip() {
+  hoveredNumber = null;
+  document.querySelector("#chartTooltip").hidden = true;
+  document.querySelector("#selectedNumberLabel").textContent = "전체 번호";
+  drawDistribution(document.querySelector("#distributionCanvas"));
 }
 
 function updateSimulator() {
@@ -174,33 +243,53 @@ function updateSimulator() {
   const totalGames = Math.round(gamesPerWeek * 52 * years);
   const chance = 1 - Math.pow(1 - 1 / ODDS.jackpot, totalGames);
   const percent = chance * 100;
+  const meterPercent = Math.max(0.35, Math.min(100, percent * 120));
 
+  document.querySelector("#gamesPerWeekOut").textContent = `${gamesPerWeek}게임`;
+  document.querySelector("#yearsOut").textContent = `${years}년`;
   document.querySelector("#jackpotChance").textContent = `${percent.toFixed(5)}%`;
   document.querySelector("#totalGames").textContent = `${formatNumber(totalGames)}게임`;
   document.querySelector("#totalSpend").textContent = `${formatNumber(totalGames * price)}원`;
+  document.querySelector("#chanceMeter").style.width = `${meterPercent}%`;
   document.querySelector("#plainSummary").textContent =
-    `${years}년 동안 매주 ${gamesPerWeek}게임을 사면 1등을 한 번 이상 볼 확률은 약 ${percent.toFixed(5)}%입니다. 낮지만, 숫자로 보면 더 낮습니다.`;
+    `${years}년 동안 매주 ${gamesPerWeek}게임. 그래도 미터가 거의 안 움직이는 게 이 게임의 핵심입니다.`;
+}
+
+function reshuffle() {
+  const boosted = stats
+    .map((row) => ({ ...row, score: row.score + Math.random() * 24 }))
+    .sort((a, b) => b.score - a.score || a.number - b.number);
+  renderNumbers(boosted.slice(0, 6).map((row) => row.number).sort((a, b) => a - b), true);
 }
 
 function init() {
-  const stats = buildStats(SAMPLE_DRAWS);
-  renderBalls(pickNumbers(stats));
-  renderSignals(stats);
-  drawHero(document.querySelector("#heroCanvas"), stats);
-  drawDistribution(document.querySelector("#distributionCanvas"), stats);
+  stats = buildStats(SAMPLE_DRAWS);
+  renderNumbers(pickNumbers(stats), false);
   updateSimulator();
 
-  document.querySelector("#shuffleBtn").addEventListener("click", () => {
-    const shuffled = [...stats]
-      .map((item) => ({ ...item, score: item.score + Math.random() * 18 }))
-      .sort((a, b) => b.score - a.score || a.number - b.number);
-    renderBalls(shuffled.slice(0, 6).map((item) => item.number).sort((a, b) => a - b));
-    renderSignals(shuffled);
-  });
+  const distributionCanvas = document.querySelector("#distributionCanvas");
+  distributionCanvas.addEventListener("mousemove", updateTooltip);
+  distributionCanvas.addEventListener("mouseleave", clearTooltip);
+  distributionCanvas.addEventListener("touchstart", (event) => updateTooltip(event.touches[0]), { passive: true });
+  distributionCanvas.addEventListener("touchmove", (event) => updateTooltip(event.touches[0]), { passive: true });
+  distributionCanvas.addEventListener("touchend", clearTooltip);
 
+  document.querySelector("#shuffleBtn").addEventListener("click", reshuffle);
   ["#gamesPerWeek", "#years", "#price"].forEach((selector) => {
     document.querySelector(selector).addEventListener("input", updateSimulator);
   });
+
+  window.addEventListener("resize", () => {
+    drawHero(document.querySelector("#heroCanvas"), performance.now());
+    drawDistribution(distributionCanvas);
+  });
+
+  drawDistribution(distributionCanvas);
+  if (reducedMotion) {
+    drawHero(document.querySelector("#heroCanvas"), 0);
+  } else {
+    requestAnimationFrame(animateHero);
+  }
 }
 
 init();
