@@ -2,7 +2,7 @@ const ODDS = {
   jackpot: 8145060,
 };
 
-const SAMPLE_DRAWS = [
+const FALLBACK_DRAWS = [
   { round: 1236, numbers: [12, 18, 21, 29, 34, 38], bonus: 10 },
   { round: 1235, numbers: [3, 11, 16, 23, 31, 44], bonus: 8 },
   { round: 1234, numbers: [7, 14, 19, 28, 33, 42], bonus: 4 },
@@ -22,6 +22,12 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matc
 let stats = [];
 let hoveredNumber = null;
 let pointer = { x: 0, y: 0 };
+let drawMeta = {
+  drawCount: FALLBACK_DRAWS.length,
+  firstRound: FALLBACK_DRAWS.at(-1)?.round,
+  lastRound: FALLBACK_DRAWS[0]?.round,
+  sourceLabel: "내장 샘플",
+};
 
 function formatNumber(value) {
   return new Intl.NumberFormat("ko-KR").format(value);
@@ -68,12 +74,71 @@ function buildStats(draws) {
   return rows;
 }
 
+async function loadDraws() {
+  try {
+    const response = await fetch("./data/draws.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!Array.isArray(payload.draws) || payload.draws.length === 0) {
+      throw new Error("draws.json에 회차 데이터가 없습니다.");
+    }
+    drawMeta = {
+      drawCount: payload.drawCount || payload.draws.length,
+      firstRound: payload.firstRound,
+      lastRound: payload.lastRound,
+      sourceLabel: payload.sourceLabel || "정적 데이터",
+      generatedAt: payload.generatedAt,
+    };
+    return [...payload.draws].sort((a, b) => b.round - a.round);
+  } catch (error) {
+    drawMeta = {
+      drawCount: FALLBACK_DRAWS.length,
+      firstRound: FALLBACK_DRAWS.at(-1)?.round,
+      lastRound: FALLBACK_DRAWS[0]?.round,
+      sourceLabel: "내장 샘플",
+    };
+    return FALLBACK_DRAWS;
+  }
+}
+
 function pickNumbers(rows) {
   return [...rows]
     .sort((a, b) => b.score - a.score || a.number - b.number)
     .slice(0, 6)
     .map((row) => row.number)
     .sort((a, b) => a - b);
+}
+
+function renderDataBadge() {
+  const badge = document.querySelector("#dataBadge");
+  const first = drawMeta.firstRound ? `${drawMeta.firstRound}` : "?";
+  const last = drawMeta.lastRound ? `${drawMeta.lastRound}` : "?";
+  badge.textContent =
+    `${first}-${last}회 · ${formatNumber(drawMeta.drawCount)}회차 데이터 · ${drawMeta.sourceLabel}`;
+}
+
+function renderRankList(selector, rows, mode) {
+  const root = document.querySelector(selector);
+  root.innerHTML = rows.slice(0, 8).map((row, index) => {
+    const value = mode === "resting" ? `${row.lastSeenAgo}회차 쉼` : `${row.frequency}회`;
+    const sub = mode === "cold" ? `최근 공백 ${row.lastSeenAgo}회차` : `출현 ${row.frequency}회`;
+    return `
+      <div class="rank-item">
+        <span class="rank-index">${index + 1}</span>
+        ${ballHtml(row.number)}
+        <div>
+          <strong>${value}</strong>
+          <small>${sub}</small>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderHistory(rows) {
+  renderRankList("#hotNumbers", [...rows].sort((a, b) => b.frequency - a.frequency || a.number - b.number), "hot");
+  renderRankList("#coldNumbers", [...rows].sort((a, b) => a.frequency - b.frequency || a.number - b.number), "cold");
+  renderRankList("#restingNumbers", [...rows].sort((a, b) => b.lastSeenAgo - a.lastSeenAgo || a.number - b.number), "resting");
 }
 
 function renderNumbers(numbers, animate = false) {
@@ -263,9 +328,12 @@ function reshuffle() {
   renderNumbers(boosted.slice(0, 6).map((row) => row.number).sort((a, b) => a - b), true);
 }
 
-function init() {
-  stats = buildStats(SAMPLE_DRAWS);
+async function init() {
+  const draws = await loadDraws();
+  stats = buildStats(draws);
+  renderDataBadge();
   renderNumbers(pickNumbers(stats), false);
+  renderHistory(stats);
   updateSimulator();
 
   const revealObserver = new IntersectionObserver(

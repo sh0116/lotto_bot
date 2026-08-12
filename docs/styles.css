@@ -206,6 +206,21 @@ input {
   line-height: 1.72;
 }
 
+.data-badge {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: 18px 0 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(94, 240, 178, 0.24);
+  border-radius: 999px;
+  color: #cfe6dc;
+  background: rgba(94, 240, 178, 0.08);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .hero-readout {
   display: grid;
   gap: 7px;
@@ -434,6 +449,88 @@ h2 {
   background: rgba(245, 241, 232, 0.03);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
+}
+
+.history-section {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 111, 97, 0.08), transparent 28%),
+    radial-gradient(circle at 88% 12%, rgba(84, 166, 255, 0.1), transparent 30%);
+  border-bottom: 1px solid var(--line);
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.rank-panel {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 20, 23, 0.58);
+  box-shadow: var(--shadow);
+}
+
+.rank-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rank-head span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.rank-head strong {
+  color: var(--gold);
+  font-size: 22px;
+}
+
+.rank-list {
+  display: grid;
+  gap: 10px;
+}
+
+.rank-item {
+  display: grid;
+  grid-template-columns: 24px 42px 1fr;
+  gap: 10px;
+  align-items: center;
+  min-height: 52px;
+}
+
+.rank-item .ball {
+  width: 42px;
+  height: 42px;
+  font-size: 14px;
+}
+
+.rank-index {
+  color: var(--dim);
+  font-weight: 900;
+  text-align: right;
+}
+
+.rank-item strong,
+.rank-item small {
+  display: block;
+}
+
+.rank-item strong {
+  color: var(--text);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-item small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .lab-copy {
@@ -739,6 +836,10 @@ dd {
   }
 
   .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-grid {
     grid-template-columns: 1fr;
   }
 }

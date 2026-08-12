@@ -22,6 +22,7 @@
       <nav class="nav" aria-label="페이지 섹션">
         <a href="#scale">확률 체감</a>
         <a href="#signals">오늘의 픽</a>
+        <a href="#history">지난 번호</a>
         <a href="#simulator">얼마나 샀나</a>
       </nav>
     </header>
@@ -32,12 +33,13 @@
         <div class="hero-shade"></div>
 
         <div class="hero-content">
-          <p class="eyebrow">운은 랜덤, 차트는 예쁨</p>
+          <p class="eyebrow">운은 랜덤, 차트는 예쁘게</p>
           <h1 id="hero-title">될 리 없는데, 또 굴려본다.</h1>
           <p class="hero-copy">
-            로또는 매번 새 판입니다. 그래도 지난 번호를 훑고, 빈도랑 공백을 보고,
-            내 구매 확률을 계산해보는 건 꽤 재밌습니다. 진지하게 믿지만 않으면요.
+            로또는 매번 새 판입니다. 그래도 지난 번호를 훑고, 자주 나온 숫자와
+            오래 쉰 숫자를 보는 건 꽤 재밌습니다. 너무 진지하게만 안 믿으면요.
           </p>
+          <p id="dataBadge" class="data-badge">데이터 불러오는 중</p>
 
           <div class="hero-readout" aria-label="1등 확률">
             <span>1등 한 장의 확률</span>
@@ -59,7 +61,7 @@
           <p class="eyebrow">확률 체감</p>
           <h2>8,145,060칸 중에 딱 한 칸</h2>
           <p>
-            아래 막대는 등수별 확률을 같은 폭에 우겨 넣은 겁니다.
+            아래 막대는 등수별 확률을 한 줄에 우겨 넣은 겁니다.
             1등 막대가 거의 안 보이는 게 버그가 아니라 현실입니다.
           </p>
         </div>
@@ -111,17 +113,17 @@
       <section id="signals" class="section lab-section reveal">
         <div class="lab-copy reveal">
           <p class="eyebrow">오늘의 픽</p>
-          <h2>예측은 아니고, 그냥 눈에 밟히는 번호</h2>
+          <h2>예측은 아니고, 그냥 눈에 밟힌 번호</h2>
           <p>
             자주 나온 번호, 한동안 안 나온 번호, 그리고 약간의 랜덤을 섞었습니다.
-            차트에 올려보면 번호별 분위기를 볼 수 있어요. 믿지는 말고, 즐깁시다.
+            차트에 마우스를 올리면 번호별 출현 횟수와 최근 공백을 볼 수 있어요. 믿지는 말고, 즐깁시다.
           </p>
           <div id="suggestedNumbers" class="number-strip" aria-live="polite"></div>
         </div>
 
         <div class="chart-stage reveal">
           <div class="chart-head">
-            <span>번호별 분위기</span>
+            <span>번호별 출현 그래프</span>
             <strong id="selectedNumberLabel">전체 번호</strong>
           </div>
           <canvas id="distributionCanvas" width="1040" height="520"></canvas>
@@ -129,10 +131,45 @@
         </div>
       </section>
 
+      <section id="history" class="section history-section reveal">
+        <div class="section-heading reveal">
+          <p class="eyebrow">지난 번호 훑기</p>
+          <h2>많이 나온 번호, 덜 나온 번호, 오래 쉰 번호</h2>
+          <p>
+            불러온 회차 기준으로 번호별 출현 횟수를 세고, 최근에 얼마나 쉬었는지도 같이 봅니다.
+            다음 회차 확률이 바뀌는 건 아니지만, 구경거리로는 꽤 괜찮습니다.
+          </p>
+        </div>
+
+        <div class="history-grid">
+          <article class="rank-panel">
+            <div class="rank-head">
+              <span>자주 나온 번호</span>
+              <strong>Hot</strong>
+            </div>
+            <div id="hotNumbers" class="rank-list"></div>
+          </article>
+          <article class="rank-panel">
+            <div class="rank-head">
+              <span>덜 나온 번호</span>
+              <strong>Cold</strong>
+            </div>
+            <div id="coldNumbers" class="rank-list"></div>
+          </article>
+          <article class="rank-panel">
+            <div class="rank-head">
+              <span>오래 쉰 번호</span>
+              <strong>Resting</strong>
+            </div>
+            <div id="restingNumbers" class="rank-list"></div>
+          </article>
+        </div>
+      </section>
+
       <section id="simulator" class="section simulator-section reveal">
         <div class="section-heading compact reveal">
           <p class="eyebrow">얼마나 샀나</p>
-          <h2>많이 사도 확률은 여전히 얇다</h2>
+          <h2>많이 사도 확률은 여전히 얇습니다</h2>
         </div>
 
         <div class="instrument reveal">
