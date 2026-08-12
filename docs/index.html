@@ -3,64 +3,66 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LottoBot Probability Observatory</title>
+    <title>LottoBot Lucky Lab</title>
     <meta
       name="description"
-      content="로또 6/45 확률, 번호 출현 분포, 누적 구매 확률을 시각화하는 재미용 확률 관측소"
+      content="로또 6/45 확률, 번호 출현 분포, 누적 구매 확률을 가볍게 즐기는 Lucky Lab"
     >
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="./" aria-label="LottoBot Probability Observatory">
+      <a class="brand" href="./" aria-label="LottoBot Lucky Lab">
         <span class="brand-mark">45</span>
         <span>
           <strong>LottoBot</strong>
-          <small>Probability Observatory</small>
+          <small>Lucky Lab</small>
         </span>
       </a>
       <nav class="nav" aria-label="페이지 섹션">
-        <a href="#scale">확률 스케일</a>
-        <a href="#signals">번호 신호</a>
-        <a href="#simulator">시뮬레이터</a>
+        <a href="#scale">확률 체감</a>
+        <a href="#signals">오늘의 픽</a>
+        <a href="#history">지난 번호</a>
+        <a href="#simulator">얼마나 샀나</a>
       </nav>
     </header>
 
     <main>
-      <section class="hero" aria-labelledby="hero-title">
+      <section class="hero reveal" aria-labelledby="hero-title">
         <canvas id="heroCanvas" class="hero-canvas" width="1440" height="820"></canvas>
         <div class="hero-shade"></div>
 
         <div class="hero-content">
-          <p class="eyebrow">Independent draw, suspiciously pretty charts</p>
-          <h1 id="hero-title">확률은 차갑고, 우리는 번호를 굴린다.</h1>
+          <p class="eyebrow">운은 랜덤, 차트는 예쁘게</p>
+          <h1 id="hero-title">될 리 없는데, 또 굴려본다.</h1>
           <p class="hero-copy">
-            로또 번호는 매 회차 독립입니다. 그래도 빈도, 공백 기간, 누적 확률을 눈으로 보면
-            기대감이 얼마나 작은 숫자인지 꽤 선명하게 보입니다.
+            로또는 매번 새 판입니다. 그래도 지난 번호를 훑고, 자주 나온 숫자와
+            오래 쉰 숫자를 보는 건 꽤 재밌습니다. 너무 진지하게만 안 믿으면요.
           </p>
+          <p id="dataBadge" class="data-badge">데이터 불러오는 중</p>
 
           <div class="hero-readout" aria-label="1등 확률">
             <span>1등 한 장의 확률</span>
             <strong>1 : 8,145,060</strong>
-            <small>숫자는 냉정하고, 마음은 자꾸 16번을 본다.</small>
+            <small>머리는 안 된다고 하고, 손은 자동선택을 누른다.</small>
           </div>
         </div>
 
-        <aside class="draw-console" aria-label="이번 장난감 신호">
-          <div class="console-label">Tonight's toy signal</div>
+        <aside class="draw-console reveal" aria-label="오늘의 장난감 픽">
+          <div class="console-label">오늘의 괜히 끌리는 픽</div>
           <div id="heroNumbers" class="machine-slots"></div>
-          <button id="shuffleBtn" class="button glow" type="button">다시 굴리기</button>
-          <p>예측이 아니라 시각화입니다. 당첨 가능성은 그대로, 재미만 조금 올라갑니다.</p>
+          <button id="shuffleBtn" class="button glow" type="button">한 번 더 돌리기</button>
+          <p>예측 아닙니다. 그냥 기분 좋은 번호 뽑기입니다.</p>
         </aside>
       </section>
 
-      <section id="scale" class="section scale-section">
-        <div class="section-heading">
-          <p class="eyebrow">Scale</p>
-          <h2>8,145,060분의 1을 몸으로 느끼기</h2>
+      <section id="scale" class="section scale-section reveal">
+        <div class="section-heading reveal">
+          <p class="eyebrow">확률 체감</p>
+          <h2>8,145,060칸 중에 딱 한 칸</h2>
           <p>
-            아래 막대는 등수별 확률을 같은 폭 안에 눌러 담은 장난감 스케일입니다.
-            1등 막대가 거의 안 보이는 게 정상입니다.
+            아래 막대는 등수별 확률을 한 줄에 우겨 넣은 겁니다.
+            1등 막대가 거의 안 보이는 게 버그가 아니라 현실입니다.
           </p>
         </div>
 
@@ -108,20 +110,20 @@
         </div>
       </section>
 
-      <section id="signals" class="section lab-section">
-        <div class="lab-copy">
-          <p class="eyebrow">Signal lab</p>
-          <h2>나올 것 같은 번호가 아니라, 보고 싶은 패턴</h2>
+      <section id="signals" class="section lab-section reveal">
+        <div class="lab-copy reveal">
+          <p class="eyebrow">오늘의 픽</p>
+          <h2>예측은 아니고, 그냥 눈에 밟힌 번호</h2>
           <p>
-            빈도와 미출현 기간을 섞어 장난감 점수를 만들었습니다. 그래프에 마우스를 올리면
-            번호별 빈도, 마지막 출현 거리, 신호 점수를 볼 수 있습니다.
+            자주 나온 번호, 한동안 안 나온 번호, 그리고 약간의 랜덤을 섞었습니다.
+            차트에 마우스를 올리면 번호별 출현 횟수와 최근 공백을 볼 수 있어요. 믿지는 말고, 즐깁시다.
           </p>
           <div id="suggestedNumbers" class="number-strip" aria-live="polite"></div>
         </div>
 
-        <div class="chart-stage">
+        <div class="chart-stage reveal">
           <div class="chart-head">
-            <span>Number distribution</span>
+            <span>번호별 출현 그래프</span>
             <strong id="selectedNumberLabel">전체 번호</strong>
           </div>
           <canvas id="distributionCanvas" width="1040" height="520"></canvas>
@@ -129,13 +131,48 @@
         </div>
       </section>
 
-      <section id="simulator" class="section simulator-section">
-        <div class="section-heading compact">
-          <p class="eyebrow">Simulator</p>
-          <h2>몇 장을 사도 1등 확률은 얇다</h2>
+      <section id="history" class="section history-section reveal">
+        <div class="section-heading reveal">
+          <p class="eyebrow">지난 번호 훑기</p>
+          <h2>많이 나온 번호, 덜 나온 번호, 오래 쉰 번호</h2>
+          <p>
+            불러온 회차 기준으로 번호별 출현 횟수를 세고, 최근에 얼마나 쉬었는지도 같이 봅니다.
+            다음 회차 확률이 바뀌는 건 아니지만, 구경거리로는 꽤 괜찮습니다.
+          </p>
         </div>
 
-        <div class="instrument">
+        <div class="history-grid">
+          <article class="rank-panel">
+            <div class="rank-head">
+              <span>자주 나온 번호</span>
+              <strong>Hot</strong>
+            </div>
+            <div id="hotNumbers" class="rank-list"></div>
+          </article>
+          <article class="rank-panel">
+            <div class="rank-head">
+              <span>덜 나온 번호</span>
+              <strong>Cold</strong>
+            </div>
+            <div id="coldNumbers" class="rank-list"></div>
+          </article>
+          <article class="rank-panel">
+            <div class="rank-head">
+              <span>오래 쉰 번호</span>
+              <strong>Resting</strong>
+            </div>
+            <div id="restingNumbers" class="rank-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="simulator" class="section simulator-section reveal">
+        <div class="section-heading compact reveal">
+          <p class="eyebrow">얼마나 샀나</p>
+          <h2>많이 사도 확률은 여전히 얇습니다</h2>
+        </div>
+
+        <div class="instrument reveal">
           <div class="controls">
             <label>
               <span>주당 게임 수</span>
@@ -178,8 +215,8 @@
       </section>
     </main>
 
-    <footer class="footer">
-      <p>재미로 보는 확률 관측소입니다. 번호 신호는 예측이 아니며, 각 추첨은 독립 시행입니다.</p>
+    <footer class="footer reveal">
+      <p>재미로 보는 Lucky Lab입니다. 번호 픽은 예측이 아니고, 각 추첨은 독립 시행입니다.</p>
     </footer>
 
     <script src="./app.js"></script>
