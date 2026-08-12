@@ -1,18 +1,11 @@
-import os
-import time
 import re
 from playwright.sync_api import Playwright, sync_playwright
 
-# 구매할 게임 수
-COUNT = 5
+from lotto_common import get_credentials, parse_money, run_notified
 
-# 5(5천원) 게임 자동 구매
-def run(playwright: Playwright):
-    # 동행복권 아이디와 패스워드를 설정
-    user_id = os.environ.get("LOTTO_ID")
-    user_pw = os.environ.get("LOTTO_PW")
-    if not user_id or not user_pw:
-        raise ValueError("환경변수 LOTTO_ID, LOTTO_PW가 설정되지 않았습니다.")
+
+def run(playwright: Playwright) -> str:
+    credentials = get_credentials()
 
     # 브라우저 열기
     browser = playwright.chromium.launch(headless=True)  # headless=False → 창 보이기
@@ -23,12 +16,12 @@ def run(playwright: Playwright):
 
     try:
         # 로그인 페이지 접속
-        page.goto("https://dhlottery.co.kr/user.do?method=login")
+        page.goto("https://dhlottery.co.kr/login")
 
         # 로그인 입력
-        page.fill("[placeholder=\"아이디\"]", user_id)
-        page.fill("[placeholder=\"비밀번호\"]", user_pw)
-        page.press("[placeholder=\"비밀번호\"]", "Enter")
+        page.fill("#inpUserId", credentials.user_id)
+        page.fill("#inpUserPswdEncn", credentials.user_pw)
+        page.click("#btnLogin")
         page.wait_for_timeout(2000)
 
         # 예치금 조회 페이지로 이동
@@ -113,18 +106,20 @@ def run(playwright: Playwright):
         
         for result in results:
             if result['result'] == '당첨':
-                total_prize += result['prize']
+                total_prize += parse_money(result['prize'])
             
-        print(f"총 당첨 금액 : {total_prize}")
-
-    except Exception as e:
-        print(f"❌ 오류 발생: {e}")
+        return f"예치금: {deposit_amount}원 / 조회 건수: {len(results)} / 총 당첨 금액: {total_prize}원"
 
     finally:
         context.close()
         browser.close()
 
 
-if __name__ == "__main__":
+def main() -> str:
+    get_credentials()
     with sync_playwright() as playwright:
-        run(playwright)
+        return run(playwright)
+
+
+if __name__ == "__main__":
+    run_notified("당첨 결과 조회", main)
