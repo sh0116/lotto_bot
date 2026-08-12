@@ -3,151 +3,183 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LottoBot Probability Playground</title>
+    <title>LottoBot Probability Observatory</title>
     <meta
       name="description"
-      content="로또 6/45 확률, 누적 당첨 가능성, 번호별 재미용 신호를 시각화하는 LottoBot 확률 놀이터"
+      content="로또 6/45 확률, 번호 출현 분포, 누적 구매 확률을 시각화하는 재미용 확률 관측소"
     >
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="./" aria-label="LottoBot Probability Playground">
+      <a class="brand" href="./" aria-label="LottoBot Probability Observatory">
         <span class="brand-mark">45</span>
         <span>
           <strong>LottoBot</strong>
-          <small>Probability Playground</small>
+          <small>Probability Observatory</small>
         </span>
       </a>
       <nav class="nav" aria-label="페이지 섹션">
-        <a href="#odds">확률</a>
+        <a href="#scale">확률 스케일</a>
         <a href="#signals">번호 신호</a>
         <a href="#simulator">시뮬레이터</a>
       </nav>
     </header>
 
     <main>
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">복권은 독립 시행, 우리는 그래도 차트를 본다</p>
-          <h1>로또 확률을 숫자가 아니라 감각으로 보기</h1>
-          <p>
-            1등 확률은 변하지 않습니다. 대신 누적 구매, 당첨 등수 분포, 번호별 출현 빈도와
-            미출현 기간을 시각화하면 지갑과 기대감 사이의 거리가 조금 선명해집니다.
+      <section class="hero" aria-labelledby="hero-title">
+        <canvas id="heroCanvas" class="hero-canvas" width="1440" height="820"></canvas>
+        <div class="hero-shade"></div>
+
+        <div class="hero-content">
+          <p class="eyebrow">Independent draw, suspiciously pretty charts</p>
+          <h1 id="hero-title">확률은 차갑고, 우리는 번호를 굴린다.</h1>
+          <p class="hero-copy">
+            로또 번호는 매 회차 독립입니다. 그래도 빈도, 공백 기간, 누적 확률을 눈으로 보면
+            기대감이 얼마나 작은 숫자인지 꽤 선명하게 보입니다.
           </p>
-          <div class="hero-actions">
-            <a class="button primary" href="#simulator">구매 확률 계산</a>
-            <a class="button secondary" href="#signals">재미용 번호 보기</a>
+
+          <div class="hero-readout" aria-label="1등 확률">
+            <span>1등 한 장의 확률</span>
+            <strong>1 : 8,145,060</strong>
+            <small>숫자는 냉정하고, 마음은 자꾸 16번을 본다.</small>
           </div>
         </div>
-        <div class="hero-visual" aria-label="로또 번호 분포 시각화">
-          <canvas id="heroCanvas" width="640" height="420"></canvas>
-        </div>
+
+        <aside class="draw-console" aria-label="이번 장난감 신호">
+          <div class="console-label">Tonight's toy signal</div>
+          <div id="heroNumbers" class="machine-slots"></div>
+          <button id="shuffleBtn" class="button glow" type="button">다시 굴리기</button>
+          <p>예측이 아니라 시각화입니다. 당첨 가능성은 그대로, 재미만 조금 올라갑니다.</p>
+        </aside>
       </section>
 
-      <section id="odds" class="section">
+      <section id="scale" class="section scale-section">
         <div class="section-heading">
-          <p class="eyebrow">Combinatorics</p>
-          <h2>6/45 기본 당첨 확률</h2>
-          <p>45개 숫자 중 6개를 고르는 전체 조합은 8,145,060개입니다.</p>
-        </div>
-        <div class="odds-grid">
-          <article class="metric">
-            <span>1등</span>
-            <strong>1 / 8,145,060</strong>
-            <small>6개 번호 일치</small>
-          </article>
-          <article class="metric">
-            <span>2등</span>
-            <strong>1 / 1,357,510</strong>
-            <small>5개 번호 + 보너스</small>
-          </article>
-          <article class="metric">
-            <span>3등</span>
-            <strong>1 / 35,724</strong>
-            <small>5개 번호 일치</small>
-          </article>
-          <article class="metric">
-            <span>4등</span>
-            <strong>1 / 733</strong>
-            <small>4개 번호 일치</small>
-          </article>
-          <article class="metric">
-            <span>5등</span>
-            <strong>1 / 45</strong>
-            <small>3개 번호 일치</small>
-          </article>
-        </div>
-      </section>
-
-      <section id="signals" class="section split">
-        <div class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Signals</p>
-              <h2>재미용 번호 신호</h2>
-            </div>
-            <button id="shuffleBtn" class="icon-button" type="button" aria-label="추천 번호 다시 섞기" title="추천 번호 다시 섞기">↻</button>
-          </div>
-          <p class="muted">
-            이 점수는 예측이 아닙니다. 빈도, 오래 안 나온 기간, 무작위 흔들림을 섞은 장난감 지표입니다.
+          <p class="eyebrow">Scale</p>
+          <h2>8,145,060분의 1을 몸으로 느끼기</h2>
+          <p>
+            아래 막대는 등수별 확률을 같은 폭 안에 눌러 담은 장난감 스케일입니다.
+            1등 막대가 거의 안 보이는 게 정상입니다.
           </p>
-          <div id="suggestedNumbers" class="number-row" aria-live="polite"></div>
-          <div class="signal-list" id="signalList"></div>
         </div>
 
-        <div class="panel">
-          <div class="panel-head">
+        <div class="scale-board" aria-label="등수별 확률 스케일">
+          <article class="scale-row" style="--accent: var(--gold); --fill: 0.0000123%;">
             <div>
-              <p class="eyebrow">Distribution</p>
-              <h2>번호별 출현 분포</h2>
+              <strong>1등</strong>
+              <span>6개 번호 일치</span>
             </div>
-          </div>
-          <canvas id="distributionCanvas" width="760" height="420"></canvas>
-          <p class="fineprint">내장 샘플은 최근 회차 일부를 기준으로 하며, 사이트 UI 데모용입니다.</p>
+            <div class="scale-track"><span></span></div>
+            <code>1 / 8,145,060</code>
+          </article>
+          <article class="scale-row" style="--accent: var(--sky); --fill: 0.0000736%;">
+            <div>
+              <strong>2등</strong>
+              <span>5개 + 보너스</span>
+            </div>
+            <div class="scale-track"><span></span></div>
+            <code>1 / 1,357,510</code>
+          </article>
+          <article class="scale-row" style="--accent: var(--coral); --fill: 0.002799%;">
+            <div>
+              <strong>3등</strong>
+              <span>5개 번호 일치</span>
+            </div>
+            <div class="scale-track"><span></span></div>
+            <code>1 / 35,724</code>
+          </article>
+          <article class="scale-row" style="--accent: var(--violet); --fill: 0.1364%;">
+            <div>
+              <strong>4등</strong>
+              <span>4개 번호 일치</span>
+            </div>
+            <div class="scale-track"><span></span></div>
+            <code>약 1 / 733</code>
+          </article>
+          <article class="scale-row" style="--accent: var(--mint); --fill: 2.222%;">
+            <div>
+              <strong>5등</strong>
+              <span>3개 번호 일치</span>
+            </div>
+            <div class="scale-track"><span></span></div>
+            <code>약 1 / 45</code>
+          </article>
         </div>
       </section>
 
-      <section id="simulator" class="section split">
-        <div class="panel">
+      <section id="signals" class="section lab-section">
+        <div class="lab-copy">
+          <p class="eyebrow">Signal lab</p>
+          <h2>나올 것 같은 번호가 아니라, 보고 싶은 패턴</h2>
+          <p>
+            빈도와 미출현 기간을 섞어 장난감 점수를 만들었습니다. 그래프에 마우스를 올리면
+            번호별 빈도, 마지막 출현 거리, 신호 점수를 볼 수 있습니다.
+          </p>
+          <div id="suggestedNumbers" class="number-strip" aria-live="polite"></div>
+        </div>
+
+        <div class="chart-stage">
+          <div class="chart-head">
+            <span>Number distribution</span>
+            <strong id="selectedNumberLabel">전체 번호</strong>
+          </div>
+          <canvas id="distributionCanvas" width="1040" height="520"></canvas>
+          <div id="chartTooltip" class="chart-tooltip" hidden></div>
+        </div>
+      </section>
+
+      <section id="simulator" class="section simulator-section">
+        <div class="section-heading compact">
           <p class="eyebrow">Simulator</p>
-          <h2>내 구매 습관으로 보는 누적 확률</h2>
+          <h2>몇 장을 사도 1등 확률은 얇다</h2>
+        </div>
+
+        <div class="instrument">
           <div class="controls">
             <label>
               <span>주당 게임 수</span>
-              <input id="gamesPerWeek" type="number" min="1" max="50" value="5">
+              <input id="gamesPerWeek" type="range" min="1" max="50" value="5">
+              <output id="gamesPerWeekOut">5게임</output>
             </label>
             <label>
               <span>기간</span>
-              <input id="years" type="number" min="1" max="30" value="1">
+              <input id="years" type="range" min="1" max="30" value="1">
+              <output id="yearsOut">1년</output>
             </label>
             <label>
               <span>게임당 금액</span>
               <input id="price" type="number" min="1000" step="1000" value="1000">
             </label>
           </div>
-        </div>
 
-        <div class="result-panel">
-          <div>
+          <div class="probability-readout">
             <span>누적 1등 확률</span>
-            <strong id="jackpotChance">0.0000%</strong>
+            <strong id="jackpotChance">0.00000%</strong>
+            <div class="meter" aria-label="누적 확률 미터"><span id="chanceMeter"></span></div>
+            <p id="plainSummary"></p>
           </div>
-          <div>
-            <span>총 구매 게임</span>
-            <strong id="totalGames">260</strong>
-          </div>
-          <div>
-            <span>총 구매금액</span>
-            <strong id="totalSpend">260,000원</strong>
-          </div>
-          <p id="plainSummary"></p>
+
+          <dl class="summary-grid">
+            <div>
+              <dt>총 구매 게임</dt>
+              <dd id="totalGames">260게임</dd>
+            </div>
+            <div>
+              <dt>총 구매금액</dt>
+              <dd id="totalSpend">260,000원</dd>
+            </div>
+            <div>
+              <dt>기본 조합 수</dt>
+              <dd>8,145,060</dd>
+            </div>
+          </dl>
         </div>
       </section>
     </main>
 
     <footer class="footer">
-      <p>LottoBot Probability Playground. 재미로 보는 확률 시각화이며, 당첨 가능성을 높인다는 의미가 아닙니다.</p>
+      <p>재미로 보는 확률 관측소입니다. 번호 신호는 예측이 아니며, 각 추첨은 독립 시행입니다.</p>
     </footer>
 
     <script src="./app.js"></script>
