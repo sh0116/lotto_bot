@@ -1,13 +1,17 @@
 import json
 import urllib.request
+from csv import reader
 from datetime import date
 from html import unescape
 from html.parser import HTMLParser
+from io import StringIO
 from pathlib import Path
 
 
-SOURCE_URL = "https://en.lottolyzer.com/history/south-korea/6_slash_45-lotto"
+LOTTOLYZER_URL = "https://en.lottolyzer.com/history/south-korea/6_slash_45-lotto"
+LEGACY_CSV_URL = "https://raw.githubusercontent.com/ioahKwon/Korean-Lottery-games-Analysis/master/data/lotto.csv"
 OUTPUT_PATH = Path("docs/data/draws.json")
+USER_AGENT = "Mozilla/5.0"
 
 
 class LottoHistoryParser(HTMLParser):
@@ -61,24 +65,70 @@ def parse_draws(html: str) -> list[dict[str, object]]:
     return draws
 
 
-def main() -> None:
-    request = urllib.request.Request(SOURCE_URL, headers={"User-Agent": "Mozilla/5.0"})
+def fetch_text(url: str) -> str:
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=20) as response:
-        text = response.read().decode("utf-8", errors="ignore")
+        return response.read().decode("utf-8", errors="ignore")
 
-    draws = parse_draws(text)
+
+def lottolyzer_page_url(page: int) -> str:
+    if page == 1:
+        return LOTTOLYZER_URL
+    return f"{LOTTOLYZER_URL}/page/{page}/per-page/50/summary-view"
+
+
+def fetch_lottolyzer_draws() -> list[dict[str, object]]:
+    draws: list[dict[str, object]] = []
+    for page in range(1, 60):
+        page_draws = parse_draws(fetch_text(lottolyzer_page_url(page)))
+        if not page_draws:
+            break
+        draws.extend(page_draws)
+    return draws
+
+
+def parse_legacy_csv(csv_text: str) -> list[dict[str, object]]:
+    draws = []
+    for index, row in enumerate(reader(StringIO(csv_text)), start=1):
+        if len(row) < 7:
+            continue
+        values = [int(value.strip().lstrip("\ufeff")) for value in row[:7]]
+        draws.append({
+            "round": index,
+            "date": None,
+            "numbers": values[:6],
+            "bonus": values[6],
+        })
+    return draws
+
+def merge_draws(*draw_sets: list[dict[str, object]]) -> list[dict[str, object]]:
+    by_round: dict[int, dict[str, object]] = {}
+    for draw_set in draw_sets:
+        for draw in draw_set:
+            by_round[int(draw["round"])] = draw
+    return sorted(by_round.values(), key=lambda draw: int(draw["round"]), reverse=True)
+
+
+def main() -> None:
+    legacy_draws = parse_legacy_csv(fetch_text(LEGACY_CSV_URL))
+    recent_draws = fetch_lottolyzer_draws()
+    draws = merge_draws(legacy_draws, recent_draws)
     if not draws:
         raise RuntimeError("No lotto draw rows found")
 
-    draws.sort(key=lambda draw: draw["round"], reverse=True)
+    rounds = [int(draw["round"]) for draw in draws]
+    missing_rounds = sorted(set(range(min(rounds), max(rounds) + 1)) - set(rounds))
+    if missing_rounds:
+        missing_preview = ", ".join(str(round_number) for round_number in missing_rounds[:10])
+        raise RuntimeError(f"Missing lotto rounds: {missing_preview}")
 
     payload = {
-        "source": SOURCE_URL,
-        "sourceLabel": "Lottolyzer 공개 데이터",
+        "source": [LOTTOLYZER_URL, LEGACY_CSV_URL],
+        "sourceLabel": "Lottolyzer + 공개 CSV",
         "generatedAt": date.today().isoformat(),
         "drawCount": len(draws),
-        "firstRound": draws[-1]["round"],
-        "lastRound": draws[0]["round"],
+        "firstRound": int(draws[-1]["round"]),
+        "lastRound": int(draws[0]["round"]),
         "draws": draws,
     }
 
