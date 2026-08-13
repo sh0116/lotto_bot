@@ -260,13 +260,22 @@ input {
 }
 
 .latest-balls .ball {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
   width: 40px;
   height: 40px;
   font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .bonus-label {
-  width: auto;
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
   color: var(--dim);
   font-size: 18px;
   line-height: 1;
@@ -935,6 +944,16 @@ dd {
     font-size: 36px;
   }
 
+  .latest-balls {
+    display: grid;
+    grid-template-columns: repeat(6, 40px);
+    justify-content: start;
+  }
+
+  .bonus-label {
+    justify-items: center;
+  }
+
   .section {
     padding: 54px 16px;
   }
@@ -950,5 +969,11 @@ dd {
 
   .probability-readout strong {
     font-size: 46px;
+  }
+}
+
+@media (max-width: 350px) {
+  .latest-balls {
+    grid-template-columns: repeat(5, 40px);
   }
 }
