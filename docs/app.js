@@ -18,8 +18,12 @@ const FALLBACK_DRAWS = [
 ];
 
 const COLORS = ["#f4b842", "#54a6ff", "#ff6f61", "#aa7dff", "#5ef0b2", "#7d8791"];
+const BACKTEST_WINDOW = 300;
+const FAVORITE_NUMBER = 16;
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let stats = [];
+let backtestReport = null;
+let semiautoReport = null;
 let hoveredNumber = null;
 let pointer = { x: 0, y: 0 };
 let drawMeta = {
@@ -75,6 +79,275 @@ function buildStats(draws) {
   return rows;
 }
 
+function clamp(value, min = 0, max = 1) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function deterministicWobble(number, salt = 0) {
+  return Math.abs(Math.sin(number * 12.9898 + salt * 78.233)) % 1;
+}
+
+function strategyScore(row, rows, strategyId) {
+  const maxFrequency = Math.max(...rows.map((item) => item.frequency), 1);
+  const minFrequency = Math.min(...rows.map((item) => item.frequency));
+  const maxAgo = Math.max(...rows.map((item) => item.lastSeenAgo), 1);
+  const frequencySignal = row.frequency / maxFrequency;
+  const coldSignal = maxFrequency === minFrequency
+    ? 0
+    : (maxFrequency - row.frequency) / (maxFrequency - minFrequency);
+  const overdueSignal = row.lastSeenAgo / maxAgo;
+  const expectedFrequency = rows.reduce((sum, item) => sum + item.frequency, 0) / rows.length;
+  const deficitSignal = clamp((expectedFrequency - row.frequency) / Math.max(expectedFrequency - minFrequency, 1));
+  const wobble = deterministicWobble(row.number, rows.length) * 0.06;
+
+  if (strategyId === "hot") return frequencySignal;
+  if (strategyId === "cold") return coldSignal;
+  if (strategyId === "resting") return overdueSignal;
+  if (strategyId === "overdueCold") return deficitSignal * 0.56 + overdueSignal * 0.38 + wobble;
+  if (strategyId === "hybrid") return frequencySignal * 0.36 + overdueSignal * 0.42 + wobble * 2.6;
+  return row.score / 100;
+}
+
+function selectNumbersByStrategy(rows, strategyId) {
+  return [...rows]
+    .map((row) => ({ ...row, strategyScore: strategyScore(row, rows, strategyId) }))
+    .sort((a, b) => b.strategyScore - a.strategyScore || b.lastSeenAgo - a.lastSeenAgo || a.number - b.number)
+    .slice(0, 6)
+    .map((row) => row.number)
+    .sort((a, b) => a - b);
+}
+
+const STRATEGIES = [
+  {
+    id: "overdueCold",
+    name: "덜 나온 + 오래 쉼",
+    short: "큰수 장난감",
+    description: "최근 300회에서 기대 횟수보다 덜 나온 정도와 최근 공백을 함께 봅니다.",
+  },
+  {
+    id: "resting",
+    name: "오래 쉰 번호",
+    short: "Resting",
+    description: "가장 오래 당첨번호에 없었던 숫자부터 고릅니다.",
+  },
+  {
+    id: "cold",
+    name: "덜 나온 번호",
+    short: "Cold",
+    description: "최근 300회에서 출현 횟수가 낮은 숫자를 우선합니다.",
+  },
+  {
+    id: "hot",
+    name: "자주 나온 번호",
+    short: "Hot",
+    description: "최근 300회에서 출현 횟수가 높은 숫자를 우선합니다.",
+  },
+  {
+    id: "hybrid",
+    name: "Hot + Resting 혼합",
+    short: "Hybrid",
+    description: "자주 나온 신호와 오래 쉰 신호를 섞고 작은 흔들림을 더합니다.",
+  },
+];
+
+function countMatches(pick, draw) {
+  const winning = new Set(draw.numbers);
+  return pick.reduce((count, number) => count + (winning.has(number) ? 1 : 0), 0);
+}
+
+function combinationCount(n, r) {
+  if (r < 0 || r > n) return 0;
+  let top = 1;
+  let bottom = 1;
+  for (let i = 1; i <= r; i += 1) {
+    top *= n - r + i;
+    bottom *= i;
+  }
+  return top / bottom;
+}
+
+function matchDistributionForSemiAuto(fixedNumbers, winningNumbers) {
+  const fixed = new Set(fixedNumbers);
+  const winning = new Set(winningNumbers);
+  const fixedHits = fixedNumbers.filter((number) => winning.has(number)).length;
+  const autoPickCount = 6 - fixedNumbers.length;
+  const population = 45 - fixedNumbers.length;
+  const remainingWins = 6 - fixedHits;
+  const denominator = combinationCount(population, autoPickCount);
+  const distribution = Array.from({ length: 7 }, () => 0);
+
+  for (let autoHits = 0; autoHits <= autoPickCount; autoHits += 1) {
+    const ways = combinationCount(remainingWins, autoHits) *
+      combinationCount(population - remainingWins, autoPickCount - autoHits);
+    distribution[fixedHits + autoHits] += ways / denominator;
+  }
+
+  return distribution;
+}
+
+function evaluateSemiAuto(draws, fixedNumbers) {
+  const distribution = Array.from({ length: 7 }, () => 0);
+  let allFixedHitRounds = 0;
+
+  draws.forEach((draw) => {
+    const winning = new Set(draw.numbers);
+    if (fixedNumbers.every((number) => winning.has(number))) allFixedHitRounds += 1;
+    matchDistributionForSemiAuto(fixedNumbers, draw.numbers).forEach((probability, matches) => {
+      distribution[matches] += probability;
+    });
+  });
+
+  const drawCount = draws.length || 1;
+  return {
+    fixedNumbers,
+    allFixedHitRounds,
+    averageMatches: distribution.reduce((sum, probability, matches) => sum + matches * probability, 0) / drawCount,
+    hit3Rate: distribution.slice(3).reduce((sum, probability) => sum + probability, 0) / drawCount,
+    hit4Rate: distribution.slice(4).reduce((sum, probability) => sum + probability, 0) / drawCount,
+    hit5Rate: distribution.slice(5).reduce((sum, probability) => sum + probability, 0) / drawCount,
+  };
+}
+
+function buildSemiAutoReport(draws) {
+  const numbers = Array.from({ length: 45 }, (_, index) => index + 1).filter((number) => number !== FAVORITE_NUMBER);
+  const groups = [
+    {
+      fixedCount: 0,
+      title: "완전 자동",
+      candidates: [[]],
+    },
+    {
+      fixedCount: 1,
+      title: "1개 반자동",
+      candidates: [[FAVORITE_NUMBER]],
+    },
+    {
+      fixedCount: 2,
+      title: "2개 반자동",
+      candidates: numbers.map((number) => [FAVORITE_NUMBER, number].sort((a, b) => a - b)),
+    },
+    {
+      fixedCount: 3,
+      title: "3개 반자동",
+      candidates: numbers.flatMap((first, firstIndex) =>
+        numbers.slice(firstIndex + 1).map((second) => [FAVORITE_NUMBER, first, second].sort((a, b) => a - b)),
+      ),
+    },
+  ];
+
+  const baselineDistribution = Array.from({ length: 7 }, (_, matches) =>
+    combinationCount(6, matches) * combinationCount(39, 6 - matches) / combinationCount(45, 6),
+  );
+  const baseline = {
+    title: "완전 자동",
+    fixedCount: 0,
+    combinationCount: 1,
+    best: {
+      fixedNumbers: [],
+      allFixedHitRounds: 0,
+      averageMatches: 6 * 6 / 45,
+      hit3Rate: baselineDistribution.slice(3).reduce((sum, probability) => sum + probability, 0),
+      hit4Rate: baselineDistribution.slice(4).reduce((sum, probability) => sum + probability, 0),
+      hit5Rate: baselineDistribution.slice(5).reduce((sum, probability) => sum + probability, 0),
+    },
+  };
+
+  const reports = groups.slice(1).map((group) => {
+    const results = group.candidates.map((candidate) => evaluateSemiAuto(draws, candidate));
+    results.sort((a, b) =>
+      b.hit3Rate - a.hit3Rate ||
+      b.hit4Rate - a.hit4Rate ||
+      b.averageMatches - a.averageMatches ||
+      a.fixedNumbers.join("-").localeCompare(b.fixedNumbers.join("-")),
+    );
+
+    return {
+      ...group,
+      combinationCount: group.candidates.length,
+      best: results[0],
+      topByAverage: [...results].sort((a, b) => b.averageMatches - a.averageMatches || a.fixedNumbers.join("-").localeCompare(b.fixedNumbers.join("-")))[0],
+      ranges: {
+        hit3Rate: summarizeValues(results.map((result) => result.hit3Rate)),
+        hit4Rate: summarizeValues(results.map((result) => result.hit4Rate)),
+        averageMatches: summarizeValues(results.map((result) => result.averageMatches)),
+      },
+    };
+  });
+
+  return {
+    favoriteNumber: FAVORITE_NUMBER,
+    drawCount: draws.length,
+    baseline,
+    reports,
+  };
+}
+
+function summarizeValues(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return {
+    min: sorted[0] || 0,
+    median: sorted.length % 2 ? sorted[middle] : ((sorted[middle - 1] || 0) + (sorted[middle] || 0)) / 2,
+    max: sorted.at(-1) || 0,
+  };
+}
+
+function runBacktest(draws) {
+  const chronological = [...draws].sort((a, b) => a.round - b.round);
+  const startIndex = Math.min(BACKTEST_WINDOW, Math.max(50, chronological.length - BACKTEST_WINDOW));
+  const results = STRATEGIES.map((strategy) => ({
+    ...strategy,
+    rounds: 0,
+    totalMatches: 0,
+    hit3Plus: 0,
+    hit4Plus: 0,
+    maxMatch: 0,
+    distribution: [0, 0, 0, 0, 0, 0, 0],
+    latestPick: [],
+  }));
+
+  for (let index = startIndex; index < chronological.length; index += 1) {
+    const history = chronological.slice(Math.max(0, index - BACKTEST_WINDOW), index).reverse();
+    const rows = buildStats(history);
+    const draw = chronological[index];
+
+    results.forEach((result) => {
+      const pick = selectNumbersByStrategy(rows, result.id);
+      const matches = countMatches(pick, draw);
+      result.rounds += 1;
+      result.totalMatches += matches;
+      result.hit3Plus += matches >= 3 ? 1 : 0;
+      result.hit4Plus += matches >= 4 ? 1 : 0;
+      result.maxMatch = Math.max(result.maxMatch, matches);
+      result.distribution[matches] += 1;
+    });
+  }
+
+  const latestWindow = chronological.slice(-BACKTEST_WINDOW).reverse();
+  const latestRows = buildStats(latestWindow);
+  results.forEach((result) => {
+    result.averageMatches = result.rounds ? result.totalMatches / result.rounds : 0;
+    result.hit3Rate = result.rounds ? result.hit3Plus / result.rounds : 0;
+    result.hit4Rate = result.rounds ? result.hit4Plus / result.rounds : 0;
+    result.latestPick = selectNumbersByStrategy(latestRows, result.id);
+  });
+
+  results.sort((a, b) =>
+    b.hit3Rate - a.hit3Rate ||
+    b.averageMatches - a.averageMatches ||
+    b.hit4Rate - a.hit4Rate ||
+    a.name.localeCompare(b.name, "ko-KR"),
+  );
+
+  return {
+    window: Math.min(BACKTEST_WINDOW, chronological.length),
+    firstTestRound: chronological[startIndex]?.round,
+    lastTestRound: chronological.at(-1)?.round,
+    results,
+    winner: results[0],
+  };
+}
+
 async function loadDraws() {
   try {
     const response = await fetch("./data/draws.json", { cache: "no-store" });
@@ -106,11 +379,7 @@ async function loadDraws() {
 }
 
 function pickNumbers(rows) {
-  return [...rows]
-    .sort((a, b) => b.score - a.score || a.number - b.number)
-    .slice(0, 6)
-    .map((row) => row.number)
-    .sort((a, b) => a - b);
+  return selectNumbersByStrategy(rows, backtestReport?.winner?.id || "overdueCold");
 }
 
 function renderDataBadge() {
@@ -165,6 +434,103 @@ function renderHistory(rows) {
   renderRankList("#hotNumbers", [...rows].sort((a, b) => b.frequency - a.frequency || a.number - b.number), "hot");
   renderRankList("#coldNumbers", [...rows].sort((a, b) => a.frequency - b.frequency || a.number - b.number), "cold");
   renderRankList("#restingNumbers", [...rows].sort((a, b) => b.lastSeenAgo - a.lastSeenAgo || a.number - b.number), "resting");
+}
+
+function percentText(value) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function renderBacktest(report) {
+  const winner = report.winner;
+  document.querySelector("#winnerName").textContent = winner.name;
+  document.querySelector("#winnerDescription").textContent =
+    `${winner.description} ${report.firstTestRound}-${report.lastTestRound}회 구간에서 3개 이상 맞은 비율이 가장 높았습니다.`;
+  document.querySelector("#winnerNumbers").innerHTML = winner.latestPick.map((number) => ballHtml(number)).join("");
+  document.querySelector("#winnerHitRate").textContent = percentText(winner.hit3Rate);
+  document.querySelector("#winnerAverage").textContent = winner.averageMatches.toFixed(2);
+  document.querySelector("#winnerRounds").textContent = `${formatNumber(winner.rounds)}회`;
+
+  document.querySelector("#logicBoard").innerHTML = report.results.map((result, index) => {
+    const isWinner = index === 0;
+    return `
+      <article class="logic-card ${isWinner ? "winner" : ""}">
+        <div class="logic-card-top">
+          <span>${result.short}</span>
+          <strong>${isWinner ? "BEST" : `#${index + 1}`}</strong>
+        </div>
+        <h3>${result.name}</h3>
+        <p>${result.description}</p>
+        <div class="logic-card-balls">${result.latestPick.map((number) => ballHtml(number)).join("")}</div>
+        <div class="logic-card-stats">
+          <span>3+ ${percentText(result.hit3Rate)}</span>
+          <span>4+ ${percentText(result.hit4Rate)}</span>
+          <span>평균 ${result.averageMatches.toFixed(2)}</span>
+          <span>최대 ${result.maxMatch}개</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderSemiAuto(report) {
+  const baseline = report.baseline.best;
+  document.querySelector("#autoHitRate").textContent = percentText(baseline.hit3Rate);
+  document.querySelector("#autoHighRate").textContent = percentText(baseline.hit4Rate);
+  document.querySelector("#autoAverage").textContent = baseline.averageMatches.toFixed(2);
+
+  const bestThree = report.reports.at(-1)?.best;
+  document.querySelector("#semiautoStats").innerHTML = `
+    <article class="stat-flash">
+      <span>분석 조합</span>
+      <strong>${formatNumber(report.reports.reduce((sum, group) => sum + group.combinationCount, 0))}</strong>
+      <small>16 포함 반자동 후보</small>
+    </article>
+    <article class="stat-flash accent">
+      <span>최고 3+ 기대</span>
+      <strong>${bestThree ? percentText(bestThree.hit3Rate) : "-"}</strong>
+      <small>${bestThree ? bestThree.fixedNumbers.map((number) => String(number).padStart(2, "0")).join(" · ") : "계산 중"}</small>
+    </article>
+    <article class="stat-flash">
+      <span>자동 대비</span>
+      <strong>${bestThree ? `+${((bestThree.hit3Rate - baseline.hit3Rate) * 100).toFixed(1)}%p` : "-"}</strong>
+      <small>과거 데이터 기대값 기준</small>
+    </article>
+  `;
+
+  document.querySelector("#semiautoBoard").innerHTML = report.reports.map((group) => {
+    const best = group.best;
+    const averageNote = group.topByAverage.fixedNumbers.join(", ") === best.fixedNumbers.join(", ")
+      ? "평균 적중도 같은 조합이 1위입니다."
+      : `평균 적중 1위는 ${group.topByAverage.fixedNumbers.map((number) => String(number).padStart(2, "0")).join(" · ")}입니다.`;
+    return `
+      <article class="semiauto-card">
+        <div class="logic-card-top">
+          <span>${group.combinationCount}가지 비교</span>
+          <strong>${group.title}</strong>
+        </div>
+        <div class="semiauto-balls">${best.fixedNumbers.length ? best.fixedNumbers.map((number) => ballHtml(number)).join("") : "<span class=\"auto-chip\">AUTO</span>"}</div>
+        <p>
+          ${best.fixedNumbers.length ? `${best.fixedNumbers.map((number) => String(number).padStart(2, "0")).join(" · ")} 고정` : "번호 고정 없음"} 기준이
+          ${report.drawCount}회 데이터에서 3개 이상 기대치가 가장 높았습니다.
+        </p>
+        <div class="logic-card-stats">
+          <span>3+ ${percentText(best.hit3Rate)}</span>
+          <span>4+ ${percentText(best.hit4Rate)}</span>
+          <span>5+ ${(best.hit5Rate * 100).toFixed(4)}%</span>
+          <span>평균 ${best.averageMatches.toFixed(2)}</span>
+        </div>
+        <div class="range-strip" aria-label="${group.title} 전체 후보 범위">
+          <span style="--range: ${Math.max(6, group.ranges.hit3Rate.max * 2200)}%">
+            3+ 범위 ${percentText(group.ranges.hit3Rate.min)}-${percentText(group.ranges.hit3Rate.max)}
+          </span>
+          <span style="--range: ${Math.max(6, group.ranges.averageMatches.max * 80)}%">
+            평균 범위 ${group.ranges.averageMatches.min.toFixed(2)}-${group.ranges.averageMatches.max.toFixed(2)}
+          </span>
+        </div>
+        <small>${best.allFixedHitRounds}회차에서 고정 숫자가 모두 실제 당첨번호에 포함. ${averageNote}</small>
+      </article>
+    `;
+  }).join("");
 }
 
 function renderNumbers(numbers, animate = false) {
@@ -348,18 +714,26 @@ function updateSimulator() {
 }
 
 function reshuffle() {
+  const strategyId = backtestReport?.winner?.id || "overdueCold";
   const boosted = stats
-    .map((row) => ({ ...row, score: row.score + Math.random() * 24 }))
-    .sort((a, b) => b.score - a.score || a.number - b.number);
+    .map((row) => ({
+      ...row,
+      score: strategyScore(row, stats, strategyId) * 100 + Math.random() * 18,
+    }))
+    .sort((a, b) => b.score - a.score || b.lastSeenAgo - a.lastSeenAgo || a.number - b.number);
   renderNumbers(boosted.slice(0, 6).map((row) => row.number).sort((a, b) => a - b), true);
 }
 
 async function init() {
   const draws = await loadDraws();
   stats = buildStats(draws);
+  backtestReport = runBacktest(draws);
+  semiautoReport = buildSemiAutoReport(draws);
   renderDataBadge();
   renderLatestDraw();
   renderNumbers(pickNumbers(stats), false);
+  renderBacktest(backtestReport);
+  renderSemiAuto(semiautoReport);
   renderHistory(stats);
   updateSimulator();
 
