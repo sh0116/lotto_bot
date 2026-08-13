@@ -22,6 +22,8 @@
       <nav class="nav" aria-label="페이지 섹션">
         <a href="#scale">확률 체감</a>
         <a href="#signals">오늘의 픽</a>
+        <a href="#backtest">로직 실험</a>
+        <a href="#semiauto">반자동</a>
         <a href="#history">지난 번호</a>
         <a href="#simulator">얼마나 샀나</a>
       </nav>
@@ -116,7 +118,7 @@
           <p class="eyebrow">오늘의 픽</p>
           <h2>예측은 아니고, 그냥 눈에 밟힌 번호</h2>
           <p>
-            자주 나온 번호, 한동안 안 나온 번호, 그리고 약간의 랜덤을 섞었습니다.
+            최근 300회 기준으로 덜 나온 번호와 오래 쉰 번호를 섞은 장난감 로직입니다.
             차트에 마우스를 올리면 번호별 출현 횟수와 최근 공백을 볼 수 있어요. 믿지는 말고, 즐깁시다.
           </p>
           <div id="suggestedNumbers" class="number-strip" aria-live="polite"></div>
@@ -129,6 +131,44 @@
           </div>
           <canvas id="distributionCanvas" width="1040" height="520"></canvas>
           <div id="chartTooltip" class="chart-tooltip" hidden></div>
+        </div>
+      </section>
+
+      <section id="backtest" class="section backtest-section reveal">
+        <div class="section-heading reveal">
+          <p class="eyebrow">로직 실험</p>
+          <h2>최근 300회만 보고 다음 회차를 찍었다면</h2>
+          <p>
+            각 회차 직전 300회 데이터만 사용해 여러 조합 로직을 굴려봤습니다.
+            독립 시행이라 미래 확률을 올리진 않지만, 실험실 장난감으로는 딱 좋습니다.
+          </p>
+        </div>
+
+        <div class="backtest-grid">
+          <article class="logic-winner">
+            <div class="logic-head">
+              <span>Backtest winner</span>
+              <strong id="winnerName">계산 중</strong>
+            </div>
+            <p id="winnerDescription">최근 회차 데이터를 분석하고 있습니다.</p>
+            <div id="winnerNumbers" class="number-strip small" aria-live="polite"></div>
+            <dl class="logic-metrics">
+              <div>
+                <dt>3개 이상</dt>
+                <dd id="winnerHitRate">-</dd>
+              </div>
+              <div>
+                <dt>평균 적중</dt>
+                <dd id="winnerAverage">-</dd>
+              </div>
+              <div>
+                <dt>검증 회차</dt>
+                <dd id="winnerRounds">-</dd>
+              </div>
+            </dl>
+          </article>
+
+          <div id="logicBoard" class="logic-board" aria-label="전략별 백테스트 결과"></div>
         </div>
       </section>
 
@@ -164,6 +204,46 @@
             </div>
             <div id="restingNumbers" class="rank-list"></div>
           </article>
+        </div>
+      </section>
+
+      <section id="semiauto" class="section semiauto-section reveal">
+        <div class="section-heading reveal">
+          <p class="eyebrow">반자동 실험</p>
+          <h2>16을 꼭 넣는다면, 몇 개를 고정할까</h2>
+          <p>
+            16을 항상 고정하고, 나머지는 자동으로 채운다고 가정했습니다.
+            1개, 2개, 3개 반자동의 모든 조합을 과거 회차에 대입해 기대 적중률을 비교합니다.
+          </p>
+        </div>
+
+        <div class="semiauto-grid">
+          <article class="auto-baseline">
+            <div class="logic-head">
+              <span>Automatic baseline</span>
+              <strong>완전 자동</strong>
+            </div>
+            <p>아무 번호도 고정하지 않고 6개를 자동으로 고르는 이론 기준입니다.</p>
+            <dl class="logic-metrics">
+              <div>
+                <dt>3개 이상</dt>
+                <dd id="autoHitRate">-</dd>
+              </div>
+              <div>
+                <dt>4개 이상</dt>
+                <dd id="autoHighRate">-</dd>
+              </div>
+              <div>
+                <dt>평균 적중</dt>
+                <dd id="autoAverage">-</dd>
+              </div>
+            </dl>
+          </article>
+
+          <div class="semiauto-results">
+            <div id="semiautoStats" class="semiauto-stats" aria-label="반자동 통계 요약"></div>
+            <div id="semiautoBoard" class="semiauto-board" aria-label="반자동 조합별 분석 결과"></div>
+          </div>
         </div>
       </section>
 

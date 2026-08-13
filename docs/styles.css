@@ -604,6 +604,17 @@ h2 {
   margin-top: 28px;
 }
 
+.number-strip.small {
+  margin-top: 0;
+}
+
+.number-strip.small .ball,
+.logic-card-balls .ball {
+  width: 38px;
+  height: 38px;
+  font-size: 13px;
+}
+
 .chart-stage,
 .instrument {
   position: relative;
@@ -656,6 +667,377 @@ canvas {
   pointer-events: none;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.backtest-section {
+  background:
+    radial-gradient(circle at 18% 8%, rgba(94, 240, 178, 0.1), transparent 30%),
+    radial-gradient(circle at 92% 20%, rgba(170, 125, 255, 0.1), transparent 28%);
+  border-bottom: 1px solid var(--line);
+}
+
+.backtest-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 0.58fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.logic-winner,
+.logic-card,
+.auto-baseline,
+.semiauto-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 20, 23, 0.62);
+  box-shadow: var(--shadow);
+}
+
+.logic-winner {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  position: sticky;
+  top: 92px;
+}
+
+.logic-head,
+.logic-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.logic-head span,
+.logic-card-top span {
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.logic-head strong {
+  color: var(--mint);
+  font-size: clamp(26px, 4vw, 44px);
+  line-height: 1.05;
+  text-align: right;
+}
+
+.logic-winner p,
+.logic-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.logic-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.logic-metrics div {
+  padding: 12px;
+  border: 1px solid rgba(245, 241, 232, 0.14);
+  border-radius: 8px;
+  background: rgba(245, 241, 232, 0.05);
+}
+
+.logic-metrics dd {
+  font-size: 22px;
+}
+
+.logic-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.logic-card {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+}
+
+.logic-card.winner {
+  border-color: rgba(94, 240, 178, 0.38);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(94, 240, 178, 0.16), transparent 38%),
+    rgba(16, 20, 23, 0.72);
+}
+
+.logic-card-top strong {
+  color: var(--gold);
+  font-size: 13px;
+}
+
+.logic-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.24;
+}
+
+.logic-card-balls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.logic-card-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.logic-card-stats span {
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(245, 241, 232, 0.12);
+  border-radius: 8px;
+  color: #d5ded9;
+  background: rgba(245, 241, 232, 0.05);
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.semiauto-section {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 86% 16%, rgba(244, 184, 66, 0.11), transparent 30%),
+    rgba(245, 241, 232, 0.025);
+  border-bottom: 1px solid var(--line);
+}
+
+.semiauto-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(245, 241, 232, 0.18) 0 1px, transparent 1.5px),
+    linear-gradient(115deg, transparent 0 42%, rgba(94, 240, 178, 0.08) 48%, transparent 54% 100%);
+  background-position: 0 0, 0 0;
+  background-size: 46px 46px, 180% 100%;
+  opacity: 0.38;
+  pointer-events: none;
+  animation: lab-drift 18s linear infinite, light-sweep 7s ease-in-out infinite;
+}
+
+.semiauto-section > * {
+  position: relative;
+  z-index: 1;
+}
+
+.semiauto-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.32fr) minmax(0, 0.68fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.semiauto-results {
+  display: grid;
+  gap: 12px;
+}
+
+.semiauto-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat-flash {
+  position: relative;
+  overflow: hidden;
+  min-height: 116px;
+  display: grid;
+  align-content: end;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid rgba(245, 241, 232, 0.15);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 82% 16%, rgba(84, 166, 255, 0.18), transparent 38%),
+    rgba(16, 20, 23, 0.64);
+  box-shadow: var(--shadow);
+}
+
+.stat-flash::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -30%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: rotate(18deg);
+  animation: card-shine 4.8s ease-in-out infinite;
+}
+
+.stat-flash.accent {
+  border-color: rgba(94, 240, 178, 0.34);
+  background:
+    radial-gradient(circle at 78% 18%, rgba(94, 240, 178, 0.2), transparent 40%),
+    rgba(16, 20, 23, 0.72);
+}
+
+.stat-flash span,
+.stat-flash small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.stat-flash strong {
+  color: var(--text);
+  font-size: clamp(28px, 4.2vw, 48px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-flash.accent strong {
+  color: var(--mint);
+}
+
+.auto-baseline {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+.auto-baseline p,
+.semiauto-card p,
+.semiauto-card small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.62;
+}
+
+.semiauto-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.semiauto-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  animation: card-float 5.6s ease-in-out infinite;
+}
+
+.semiauto-card:nth-child(2) {
+  animation-delay: -1.4s;
+}
+
+.semiauto-card:nth-child(3) {
+  animation-delay: -2.8s;
+}
+
+.semiauto-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 32%),
+    repeating-linear-gradient(90deg, rgba(245, 241, 232, 0.055) 0 1px, transparent 1px 12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.semiauto-card:hover::before {
+  opacity: 1;
+}
+
+.semiauto-card:first-child {
+  border-color: rgba(244, 184, 66, 0.36);
+  background:
+    radial-gradient(circle at 88% 10%, rgba(244, 184, 66, 0.14), transparent 36%),
+    rgba(16, 20, 23, 0.68);
+}
+
+.semiauto-balls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 38px;
+  align-items: center;
+}
+
+.semiauto-balls .ball {
+  width: 38px;
+  height: 38px;
+  font-size: 13px;
+  animation: ball-breathe 3.8s ease-in-out infinite;
+}
+
+.semiauto-balls .ball:nth-child(2) {
+  animation-delay: -0.8s;
+}
+
+.semiauto-balls .ball:nth-child(3) {
+  animation-delay: -1.6s;
+}
+
+.auto-chip {
+  min-height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(94, 240, 178, 0.24);
+  border-radius: 999px;
+  padding: 0 14px;
+  color: var(--mint);
+  background: rgba(94, 240, 178, 0.08);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.range-strip {
+  display: grid;
+  gap: 8px;
+}
+
+.range-strip span {
+  position: relative;
+  overflow: hidden;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(245, 241, 232, 0.12);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #d5ded9;
+  background: rgba(245, 241, 232, 0.045);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.range-strip span::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(var(--range), 100%);
+  background: linear-gradient(90deg, rgba(244, 184, 66, 0.28), rgba(94, 240, 178, 0.26));
+  transform-origin: left center;
+  animation: meter-grow 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.range-strip span {
+  isolation: isolate;
+}
+
+.range-strip span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
 }
 
 .simulator-section {
@@ -837,6 +1219,60 @@ dd {
   }
 }
 
+@keyframes card-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes ball-breathe {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.05);
+  }
+}
+
+@keyframes card-shine {
+  0%, 42% {
+    transform: translateX(0) rotate(18deg);
+  }
+  72%, 100% {
+    transform: translateX(420%) rotate(18deg);
+  }
+}
+
+@keyframes meter-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes lab-drift {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 92px 46px, 0 0;
+  }
+}
+
+@keyframes light-sweep {
+  0%, 100% {
+    background-position: 0 0, -80% 0;
+  }
+  50% {
+    background-position: 46px 23px, 80% 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -846,7 +1282,12 @@ dd {
     animation: none;
   }
 
-  .brand-mark {
+  .brand-mark,
+  .semiauto-card,
+  .semiauto-balls .ball,
+  .stat-flash::after,
+  .semiauto-section::before,
+  .range-strip span::before {
     animation: none;
   }
 
@@ -887,6 +1328,8 @@ dd {
 
   .scale-row,
   .lab-section,
+  .backtest-grid,
+  .semiauto-grid,
   .instrument {
     grid-template-columns: 1fr;
   }
@@ -901,6 +1344,11 @@ dd {
 
   .history-grid {
     grid-template-columns: 1fr;
+  }
+
+  .logic-winner {
+    position: relative;
+    top: auto;
   }
 }
 
@@ -969,6 +1417,21 @@ dd {
 
   .probability-readout strong {
     font-size: 46px;
+  }
+
+  .logic-board,
+  .semiauto-board,
+  .semiauto-stats,
+  .logic-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .logic-head {
+    display: grid;
+  }
+
+  .logic-head strong {
+    text-align: left;
   }
 }
 
