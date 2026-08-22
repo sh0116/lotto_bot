@@ -4,11 +4,24 @@
     "https://raw.githubusercontent.com/ioahKwon/Korean-Lottery-games-Analysis/master/data/lotto.csv"
   ],
   "sourceLabel": "Lottolyzer + 공개 CSV",
-  "generatedAt": "2026-08-15",
-  "drawCount": 1237,
+  "generatedAt": "2026-08-22",
+  "drawCount": 1238,
   "firstRound": 1,
-  "lastRound": 1237,
+  "lastRound": 1238,
   "draws": [
+    {
+      "round": 1238,
+      "date": "2026-08-22",
+      "numbers": [
+        2,
+        13,
+        18,
+        32,
+        38,
+        42
+      ],
+      "bonus": 22
+    },
     {
       "round": 1237,
       "date": "2026-08-15",
