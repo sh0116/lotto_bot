@@ -216,7 +216,10 @@ def confirm_purchase(page, max_attempts: int = 3) -> str:
 
         body_text = compact_text(page.locator("body").inner_text(timeout=3000))
         if "구매내역 확인" in body_text:
-            click_layer_action(page, "#popupLayerConfirm", labels=["확인"], timeout=7000)
+            try:
+                click_layer_action(page, "#popupLayerConfirm", labels=["확인"], timeout=7000)
+            except Exception:
+                click_visible(page, "input[value='확인'], button:has-text('확인')", timeout=7000)
             return "구매내역 확인 팝업 표시"
 
         alert_message = visible_layer_text(page, "#popupLayerAlert", timeout=3000)
@@ -254,7 +257,7 @@ def reset_staged_games(page) -> None:
 def login(page, user_id: str, user_pw: str) -> None:
     page.goto("https://dhlottery.co.kr/login", wait_until="networkidle")
     page.wait_for_function(
-        "() => typeof rsa !== 'undefined' && typeof rsa.encrypt === 'function' && !!rsa.encrypt('probe')",
+        "() => typeof rsa !== 'undefined' && typeof rsa.encrypt === 'function'",
         timeout=10000,
     )
     fill_first(page, ["#inpUserId", "[placeholder='아이디']"], user_id)
