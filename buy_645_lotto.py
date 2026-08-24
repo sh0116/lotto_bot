@@ -12,6 +12,7 @@ from lotto_common import (
 
 
 PURCHASE_LIMIT_MESSAGE = "이번 주 로또 구매한도 5천원을 모두 채우셨습니다"
+PURCHASE_LIMIT_TITLE = "구매한도 알림"
 MAX_GAMES_PER_PURCHASE_MESSAGE = "1회 최대 5게임만 구매할 수 있습니다"
 MAX_GAMES_PER_PURCHASE = 5
 
@@ -21,7 +22,8 @@ def compact_text(value: str) -> str:
 
 
 def is_purchase_limit_message(value: str) -> bool:
-    return PURCHASE_LIMIT_MESSAGE in compact_text(value)
+    text = compact_text(value)
+    return PURCHASE_LIMIT_MESSAGE in text or (PURCHASE_LIMIT_TITLE in text and "구매한도 5천원" in text)
 
 
 def is_max_games_per_purchase_message(value: str) -> bool:
@@ -204,7 +206,9 @@ def confirm_purchase(page, max_attempts: int = 3) -> str:
                     const alertVisible = alertLayer
                         && window.getComputedStyle(alertLayer).display !== 'none'
                         && alertLayer.innerText.trim().length > 0;
-                    return bodyText.includes('구매내역 확인') || alertVisible;
+                    return bodyText.includes('구매내역 확인')
+                        || bodyText.includes('구매한도 알림')
+                        || alertVisible;
                 }""",
                 timeout=15000,
             )
@@ -215,6 +219,9 @@ def confirm_purchase(page, max_attempts: int = 3) -> str:
             raise
 
         body_text = compact_text(page.locator("body").inner_text(timeout=3000))
+        if is_purchase_limit_message(body_text):
+            click_first(page, ["input[value='닫기']", "button:has-text('닫기')", "a:has-text('닫기')"], timeout=7000)
+            return f"645 구매 완료 알림: {PURCHASE_LIMIT_MESSAGE}"
         if "구매내역 확인" in body_text:
             try:
                 click_layer_action(page, "#popupLayerConfirm", labels=["확인"], timeout=7000)
