@@ -1,115 +1,153 @@
 import re
+from datetime import date, timedelta
+
 from playwright.sync_api import Playwright, sync_playwright
 
-from lotto_common import get_credentials, parse_money, run_notified
+from buy_645_lotto import login, read_account_preflight
+from lotto_common import (
+    LottoBotError,
+    env_bool,
+    get_credentials,
+    parse_money,
+    run_notified,
+    save_failure_screenshot,
+)
 
+
+def normalize_date(value: str) -> str:
+    digits = "".join(ch for ch in value if ch.isdigit())
+    if len(digits) != 8:
+        raise LottoBotError(f"날짜는 YYYYMMDD 형식이어야 합니다: {value}")
+    return digits
+
+
+def default_start_date() -> str:
+    today = date.today()
+    return (today - timedelta(days=180)).strftime("%Y%m%d")
+
+
+def ticket_key(row: dict[str, str]) -> tuple[str, str, str]:
+    return (row.get("round", ""), row.get("ticket_number", ""), row.get("purchase_date", ""))
+
+
+def read_body_text(page) -> str:
+    return " ".join(page.locator("body").inner_text(timeout=5000).split())
+
+
+def parse_ledger_cards_from_text(body_text: str) -> list[dict[str, str]]:
+    pattern = re.compile(
+        r"구입일자\s*(?P<purchase_date>\d{4}-\d{2}-\d{2})\s*"
+        r"(?P<lotto_name>로또6/45)\s*"
+        r"(?P<round>\d+)\s+"
+        r"(?P<ticket_number>.*?)\s*"
+        r"구입매수\s*(?P<quantity>\d+)\s*"
+        r"(?P<result>당첨|낙첨|미추첨|미확인|추첨중)\s*"
+        r"(?P<prize>[0-9,]+\s*원|-)?\s*"
+        r"추첨일자\s*(?P<draw_date>\d{4}-\d{2}-\d{2})",
+    )
+    rows = []
+    for match in pattern.finditer(body_text):
+        ticket_number = " ".join(match.group("ticket_number").split())
+        rows.append({
+            "purchase_date": match.group("purchase_date"),
+            "lotto_name": match.group("lotto_name"),
+            "round": match.group("round"),
+            "ticket_number": ticket_number,
+            "quantity": match.group("quantity"),
+            "result": match.group("result"),
+            "prize": match.group("prize") or "0",
+            "draw_date": match.group("draw_date"),
+        })
+    return rows
+
+
+def parse_ledger_rows(page) -> list[dict[str, str]]:
+    body_text = read_body_text(page)
+    if "조회된 내역이 없습니다" in body_text:
+        return []
+
+    rows = parse_ledger_cards_from_text(body_text)
+    if rows:
+        return rows
+
+    for row in page.locator("table tbody tr").all():
+        try:
+            cells = [" ".join(cell.inner_text(timeout=500).split()) for cell in row.locator("td").all()]
+        except Exception:
+            continue
+        if len(cells) < 5:
+            continue
+        row_text = " ".join(cells)
+        if not any(token in row_text for token in ["로또", "645", "당첨", "낙첨", "미추첨", "미확인", "추첨중"]):
+            continue
+        rows.append({
+            "purchase_date": cells[0] if len(cells) > 0 else "",
+            "lotto_name": cells[1] if len(cells) > 1 else "",
+            "round": cells[2] if len(cells) > 2 else "",
+            "ticket_number": cells[3] if len(cells) > 3 else "",
+            "quantity": cells[4] if len(cells) > 4 else "",
+            "result": cells[5] if len(cells) > 5 else "",
+            "prize": cells[6] if len(cells) > 6 else "0",
+            "draw_date": cells[7] if len(cells) > 7 else "",
+        })
+    return rows
+
+
+def select_lotto_645_if_available(page) -> None:
+    try:
+        page.locator("#ltGdsSelect").select_option(label="로또6/45", timeout=3000)
+    except Exception:
+        pass
+
+
+def click_search_if_available(page) -> None:
+    for selector in ["button:has-text('검색')", "a:has-text('검색')", "input[value='검색']"]:
+        try:
+            page.locator(selector).first.click(timeout=3000)
+            page.wait_for_timeout(1500)
+            return
+        except Exception:
+            continue
 
 def run(playwright: Playwright) -> str:
     credentials = get_credentials()
+    headless = env_bool("LOTTO_HEADLESS", default=True)
+    start_date = normalize_date(__import__("os").environ.get("LOTTO_CHECK_START_DATE", default_start_date()))
 
-    # 브라우저 열기
-    browser = playwright.chromium.launch(headless=True)  # headless=False → 창 보이기
-    context = browser.new_context()
+    browser = playwright.chromium.launch(headless=headless)
+    context = browser.new_context(locale="ko-KR", timezone_id="Asia/Seoul")
     page = context.new_page()
-
-    FIXED_NUMBERS = [16]
+    page.set_default_timeout(15000)
 
     try:
-        # 로그인 페이지 접속
-        page.goto("https://dhlottery.co.kr/login")
+        login(page, credentials.user_id, credentials.user_pw)
+        account_label, deposit_amount = read_account_preflight(page)
 
-        # 로그인 입력
-        page.fill("#inpUserId", credentials.user_id)
-        page.fill("#inpUserPswdEncn", credentials.user_pw)
-        page.click("#btnLogin")
-        page.wait_for_timeout(2000)
+        page.goto("https://www.dhlottery.co.kr/mypage/mylotteryledger", wait_until="domcontentloaded")
+        page.wait_for_timeout(1500)
+        select_lotto_645_if_available(page)
+        page.fill("#srchStrDt", start_date)
+        page.fill("#srchEndDt", date.today().strftime("%Y%m%d"))
+        click_search_if_available(page)
 
-        # 예치금 조회 페이지로 이동
-        page.goto("https://dhlottery.co.kr/userSsl.do?method=myPage")
-        page.wait_for_timeout(2000)
-        # 프레임 내부에서 예치금 strong 태그 찾기
-        deposit_str = page.query_selector("p.total_new > strong").inner_text().strip()
-        deposit_amount = int(deposit_str.replace(",", ""))
-        print(f"예치금: {deposit_amount}원")
+        results = parse_ledger_rows(page)
 
-
-        # 당첨여부 조회 페이지로 이동
-        page.goto("https://dhlottery.co.kr/myPage.do?method=lottoBuyListView")
-        page.wait_for_timeout(2000)
-
-        # 날짜 설정: 조회 시작 날짜를 2025.01.01로 설정
-        page.fill("#calendarStartDt", "20250101")
-        page.press("#calendarStartDt", "Enter") 
-        page.wait_for_timeout(1000)
-
-        page.click("#submit_btn")
-        page.wait_for_timeout(1000)
-        
-
-
-        results = []
-        seen_tickets = set()
-        visited_pages = set()
-
-        frame = page.frame(name="lottoBuyList")
-
-        def parse_table_data(frame):
-            rows = frame.query_selector_all("table.tbl_data_col tbody tr")
-            for row in rows:
-                cols = row.query_selector_all("td")
-                if len(cols) == 8:
-                    ticket_number = cols[3].inner_text().strip()
-                    if ticket_number in seen_tickets:
-                        continue  # 중복 제거
-                    seen_tickets.add(ticket_number)
-
-                    results.append({
-                        "purchase_date": cols[0].inner_text().strip(),
-                        "lotto_name": cols[1].inner_text().strip(),
-                        "round": cols[2].inner_text().strip(),
-                        "ticket_number": ticket_number,
-                        "quantity": cols[4].inner_text().strip(),
-                        "result": cols[5].inner_text().strip(),
-                        "prize": cols[6].inner_text().strip(),
-                        "draw_date": cols[7].inner_text().strip(),
-                    })
-
-        while True:
-            frame = page.frame(name="lottoBuyList")  # ✅ 반드시 매 반복마다 재할당
-            parse_table_data(frame)
-
-            # 페이지 이동 링크 확인
-            page_links = frame.query_selector_all("div#page_box a")
-
-            next_page_number = None
-
-            for link in page_links:
-                onclick = link.get_attribute("onclick")
-                if onclick and "selfSubmit" in onclick:
-                    match = re.search(r"selfSubmit\((\d+)\)", onclick)
-                    if match:
-                        page_num = int(match.group(1))
-                        if page_num not in visited_pages:
-                            next_page_number = page_num
-                            visited_pages.add(page_num)
-                            break
-
-            if next_page_number is None:
-                break  # 더 이상 새로운 페이지 없음
-
-            # 다음 페이지 이동
-            frame.eval_on_selector(f"a[onclick*='selfSubmit({next_page_number})']", "el => el.click()")
-            page.wait_for_timeout(3000)
-
-
-        total_prize = 0
-        
-        for result in results:
-            if result['result'] == '당첨':
-                total_prize += parse_money(result['prize'])
-            
-        return f"예치금: {deposit_amount}원 / 조회 건수: {len(results)} / 총 당첨 금액: {total_prize}원"
-
+        total_prize = sum(parse_money(item["prize"]) for item in results if item.get("result") == "당첨")
+        winning_count = sum(1 for item in results if item.get("result") == "당첨")
+        recent = results[:3]
+        recent_text = "; ".join(
+            f"{item['round']}회 {item['result']} {item['prize']}" for item in recent
+        ) or "최근 구매내역 없음"
+        return (
+            f"계정: {account_label} / 예치금: {deposit_amount}원 / 조회 시작일: {start_date} / "
+            f"조회 건수: {len(results)} / 당첨 건수: {winning_count} / "
+            f"총 당첨 금액: {total_prize}원 / 최근: {recent_text}"
+        )
+    except Exception:
+        screenshot = save_failure_screenshot(page, "check-results")
+        if screenshot:
+            print(f"실패 스크린샷 저장: {screenshot}")
+        raise
     finally:
         context.close()
         browser.close()

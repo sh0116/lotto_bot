@@ -1,3 +1,5 @@
+import re
+
 from playwright.sync_api import Playwright, sync_playwright
 
 from lotto_common import (
@@ -6,6 +8,7 @@ from lotto_common import (
     env_int,
     env_int_list,
     get_credentials,
+    parse_money,
     run_notified,
     save_failure_screenshot,
 )
@@ -226,7 +229,7 @@ def confirm_purchase(page, max_attempts: int = 3) -> str:
             try:
                 click_layer_action(page, "#popupLayerConfirm", labels=["확인"], timeout=7000)
             except Exception:
-                click_visible(page, "input[value='확인'], button:has-text('확인')", timeout=7000)
+                click_first(page, ["input[value='확인']", "button:has-text('확인')", "text=확인"], timeout=7000)
             return "구매내역 확인 팝업 표시"
 
         alert_message = visible_layer_text(page, "#popupLayerAlert", timeout=3000)
@@ -243,6 +246,70 @@ def confirm_purchase(page, max_attempts: int = 3) -> str:
         raise RuntimeError(f"구매 확인 중 예상치 못한 알림: {alert_message}")
 
     raise RuntimeError("구매 확인 팝업이 반복 알림으로 완료되지 않았습니다.")
+
+
+def logged_in_account_label(page) -> str:
+    body_text = compact_text(page.locator("body").inner_text(timeout=5000))
+    match = re.search(r"([가-힣A-Za-z0-9*]{2,20})님\s*로그아웃", body_text)
+    if match:
+        return match.group(1)
+    if "로그아웃" in body_text:
+        return "로그인됨(표시명 확인 불가)"
+    raise RuntimeError("로그인된 계정 표시를 찾지 못했습니다.")
+
+
+def read_deposit_amount(page) -> int:
+    body_text = compact_text(page.locator("body").inner_text(timeout=5000))
+
+    preferred_patterns = [
+        r"예치금\s*잔액\s*([0-9,]+)\s*원",
+        r"구매가능\s*([0-9,]+)\s*원",
+    ]
+    for pattern in preferred_patterns:
+        match = re.search(pattern, body_text)
+        if match:
+            return parse_money(match.group(1))
+
+    selectors = [
+        "p.total_new > strong",
+        ".total_new strong",
+        "strong:near(:text('예치금'))",
+    ]
+    last_error: Exception | None = None
+    for selector in selectors:
+        try:
+            locator = page.locator(selector).first
+            locator.wait_for(state="visible", timeout=5000)
+            value = parse_money(locator.inner_text(timeout=1000))
+            if value > 0:
+                return value
+            last_error = RuntimeError(f"{selector} returned zero")
+        except Exception as exc:
+            last_error = exc
+
+    matches = re.findall(r"예치금\s*([0-9,]+)\s*원", body_text)
+    if matches:
+        return max(parse_money(value) for value in matches)
+    raise RuntimeError("예치금 표시 영역을 찾지 못했습니다.") from last_error
+
+
+def read_account_preflight(page) -> tuple[str, int]:
+    page.goto("https://www.dhlottery.co.kr/mypage/home", wait_until="domcontentloaded")
+    page.wait_for_timeout(1500)
+    return logged_in_account_label(page), read_deposit_amount(page)
+
+
+def assert_expected_account(account_label: str) -> None:
+    from os import environ
+
+    expected = environ.get("LOTTO_EXPECTED_ACCOUNT_LABEL", "").strip()
+    if expected and expected not in account_label:
+        raise LottoBotError(f"로그인 계정 확인 실패: expected={expected}, actual={account_label}")
+
+
+def assert_sufficient_deposit(deposit_amount: int, required_amount: int) -> None:
+    if deposit_amount < required_amount:
+        raise LottoBotError(f"예치금 부족: 현재 {deposit_amount}원, 필요 {required_amount}원")
 
 
 def validate_purchase_count(count: int) -> None:
@@ -311,6 +378,11 @@ def run(playwright: Playwright) -> str:
 
     try:
         login(page, credentials.user_id, credentials.user_pw)
+        account_label, deposit_amount = read_account_preflight(page)
+        assert_expected_account(account_label)
+        required_amount = count * 1000
+        if not dry_run:
+            assert_sufficient_deposit(deposit_amount, required_amount)
 
         page.goto("https://ol.dhlottery.co.kr/olotto/game/game645.do", wait_until="domcontentloaded")
         page.wait_for_timeout(2500)
@@ -321,13 +393,18 @@ def run(playwright: Playwright) -> str:
 
         click_first(page, ["text=자동선택", "input[value='자동선택']", "#btnSelectNum"])
         select_first(page, ["#amoundApply", "select[name='amoundApply']", "select"], str(count))
+
+        if dry_run:
+            return (
+                f"DRY RUN: 645 로그인/예치금/번호선택/수량선택 확인 완료, "
+                f"account={account_label}, deposit={deposit_amount}원, "
+                f"required={required_amount}원, count={count}, fixed_numbers={fixed_numbers}"
+            )
+
         click_first(page, ["input[value='확인']", "button:has-text('확인')", "text=확인"])
         alert_message = dismiss_alert(page, timeout=1000)
         if alert_message and not is_max_games_per_purchase_message(alert_message):
             raise RuntimeError(f"번호 적용 중 예상치 못한 알림: {alert_message}")
-
-        if dry_run:
-            return f"DRY RUN: 645 구매 직전까지 확인 완료, count={count}, fixed_numbers={fixed_numbers}"
 
         try:
             click_first(page, ["#btnBuy", "button[name='btnBuy']", "input[value='구매하기']", "text=구매하기"])
@@ -344,7 +421,10 @@ def run(playwright: Playwright) -> str:
         if close_buttons.count() > 0:
             close_buttons.first.click(timeout=3000)
 
-        return f"645 구매 요청 완료, count={count}, fixed_numbers={fixed_numbers}, result={result_message}"
+        return (
+            f"645 구매 요청 완료, account={account_label}, deposit_before={deposit_amount}원, "
+            f"count={count}, fixed_numbers={fixed_numbers}, result={result_message}"
+        )
     except Exception:
         screenshot = save_failure_screenshot(page, "buy-645")
         if screenshot:

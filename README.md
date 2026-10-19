@@ -24,7 +24,8 @@ OpenClaw Cron이 로컬의 안전한 `.env`를 읽어 실행한 뒤 Telegram으�
 ├── check_lotto_results.py    # 예치금/구매내역/당첨 결과 조회
 ├── docs/                     # GitHub Pages 확률 분포 사이트
 ├── lotto_common.py           # 환경변수, 알림, 금액 파싱, 공통 예외
-├── run_645_cron.sh           # OpenClaw Cron 진입점
+├── run_645_cron.sh           # OpenClaw Cron 호환 진입점
+├── run_645_weekly.sh         # 당첨 결과 조회 후 6/45 구매
 ├── tests/                    # 공통 유틸 단위 테스트
 └── .github/workflows/        # 수동 실행용 GitHub Actions
 ```
@@ -79,9 +80,13 @@ LOTTO_645_COUNT=5
 LOTTO_645_FIXED_NUMBERS=16
 LOTTO_HEADLESS=true
 LOTTO_DRY_RUN=false
+LOTTO_645_CHECK_RESULTS=true
+LOTTO_CHECK_START_DATE=       # 비우면 최근 180일
+LOTTO_CHECK_MAX_PAGES=20
 
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
+LOTTO_SCRIPT_NOTIFY=true
 ```
 
 Telegram 알림은 두 겹으로 운용할 수 있습니다.
@@ -101,7 +106,7 @@ set -a; . ./.env; set +a
 LOTTO_DRY_RUN=true .venv/bin/python buy_645_lotto.py
 ```
 
-실제 6/45 구매:
+주간 6/45 실행(이전 구매 당첨 결과 조회 후 실제 구매):
 
 ```bash
 cd /home/pi/.openclaw/workspace/lotto_bot
@@ -119,7 +124,7 @@ set -a; . ./.env; set +a
 ## OpenClaw Cron
 
 GitHub Actions의 정기 스케줄은 중복 구매를 막기 위해 끄고, 수동 실행만 남깁니다.
-정기 구매는 OpenClaw Cron에서 아래 명령을 실행합니다.
+정기 구매는 OpenClaw Cron에서 아래 명령을 실행합니다. 이 명령은 이전 구매 당첨 결과를 먼저 조회한 뒤 이번 주 6/45 구매를 시도합니다.
 
 ```text
 Schedule: Asia/Seoul 매주 금요일 08:00
@@ -160,7 +165,8 @@ OpenClaw Cron이 로컬의 안전한 `.env`를 읽어 실행한 뒤 Telegram으�
 ├── buy_720_lotto.py          # 연금복권 720+ 구매
 ├── check_lotto_results.py    # 예치금/구매내역/당첨 결과 조회
 ├── lotto_common.py           # 환경변수, 알림, 금액 파싱, 공통 예외
-├── run_645_cron.sh           # OpenClaw Cron 진입점
+├── run_645_cron.sh           # OpenClaw Cron 호환 진입점
+├── run_645_weekly.sh         # 당첨 결과 조회 후 6/45 구매
 ├── tests/                    # 공통 유틸 단위 테스트
 └── .github/workflows/        # 수동 실행용 GitHub Actions
 ```
@@ -187,9 +193,13 @@ LOTTO_645_COUNT=5
 LOTTO_645_FIXED_NUMBERS=16
 LOTTO_HEADLESS=true
 LOTTO_DRY_RUN=false
+LOTTO_645_CHECK_RESULTS=true
+LOTTO_CHECK_START_DATE=       # 비우면 최근 180일
+LOTTO_CHECK_MAX_PAGES=20
 
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
+LOTTO_SCRIPT_NOTIFY=true
 ```
 
 Telegram 알림은 두 겹으로 운용할 수 있습니다.
@@ -209,7 +219,7 @@ set -a; . ./.env; set +a
 LOTTO_DRY_RUN=true .venv/bin/python buy_645_lotto.py
 ```
 
-실제 6/45 구매:
+주간 6/45 실행(이전 구매 당첨 결과 조회 후 실제 구매):
 
 ```bash
 cd /home/pi/.openclaw/workspace/lotto_bot
@@ -227,7 +237,7 @@ set -a; . ./.env; set +a
 ## OpenClaw Cron
 
 GitHub Actions의 정기 스케줄은 중복 구매를 막기 위해 끄고, 수동 실행만 남깁니다.
-정기 구매는 OpenClaw Cron에서 아래 명령을 실행합니다.
+정기 구매는 OpenClaw Cron에서 아래 명령을 실행합니다. 이 명령은 이전 구매 당첨 결과를 먼저 조회한 뒤 이번 주 6/45 구매를 시도합니다.
 
 ```text
 Schedule: Asia/Seoul 매주 금요일 08:00
@@ -272,3 +282,19 @@ C(45, 6) = 8,145,060
 
 중요한 점은 번호 추천이 실제 당첨 가능성을 높이지 않는다는 것입니다. 사이트의 재미는 예측이 아니라
 확률, 비용, 기대값, 기록을 시각적으로 보여주는 쪽에 있습니다.
+
+
+### 계정/예치금 안전장치
+
+`buy_645_lotto.py`는 실제 구매 전에 동행복권 MY 화면에서 로그인 표시명과 예치금을 읽습니다. 실제 구매 모드에서는 `LOTTO_645_COUNT * 1000`원보다 예치금이 적으면 구매를 시작하지 않습니다.
+
+잘못된 계정 로그인을 막고 싶으면 `.env`에 다음 값을 설정하세요. 화면의 마스킹 표시명 일부가 포함되어야 합니다.
+
+```env
+LOTTO_EXPECTED_ACCOUNT_LABEL=김*현
+```
+
+
+### OpenClaw 자동화 알림
+
+OpenClaw automation에서 실행할 때는 `LOTTO_SCRIPT_NOTIFY=false`를 command env에 넣어 스크립트의 직접 Telegram 전송을 끄고, OpenClaw delivery가 최종 stdout을 Telegram으로 보내게 합니다. 이렇게 하면 중복 알림을 피할 수 있습니다.

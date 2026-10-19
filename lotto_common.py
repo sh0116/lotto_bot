@@ -67,6 +67,9 @@ def parse_money(value: str) -> int:
 
 
 def notify_telegram(message: str) -> None:
+    if not env_bool("LOTTO_SCRIPT_NOTIFY", default=True):
+        return
+
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
