@@ -4,11 +4,115 @@
     "https://raw.githubusercontent.com/ioahKwon/Korean-Lottery-games-Analysis/master/data/lotto.csv"
   ],
   "sourceLabel": "Lottolyzer + 공개 CSV",
-  "generatedAt": "2026-08-22",
-  "drawCount": 1238,
+  "generatedAt": "2026-10-17",
+  "drawCount": 1246,
   "firstRound": 1,
-  "lastRound": 1238,
+  "lastRound": 1246,
   "draws": [
+    {
+      "round": 1246,
+      "date": "2026-10-17",
+      "numbers": [
+        16,
+        22,
+        23,
+        24,
+        27,
+        28
+      ],
+      "bonus": 6
+    },
+    {
+      "round": 1245,
+      "date": "2026-10-10",
+      "numbers": [
+        4,
+        5,
+        25,
+        28,
+        32,
+        42
+      ],
+      "bonus": 12
+    },
+    {
+      "round": 1244,
+      "date": "2026-10-03",
+      "numbers": [
+        1,
+        13,
+        18,
+        26,
+        34,
+        38
+      ],
+      "bonus": 25
+    },
+    {
+      "round": 1243,
+      "date": "2026-09-26",
+      "numbers": [
+        9,
+        18,
+        24,
+        38,
+        43,
+        44
+      ],
+      "bonus": 35
+    },
+    {
+      "round": 1242,
+      "date": "2026-09-19",
+      "numbers": [
+        2,
+        4,
+        10,
+        16,
+        31,
+        41
+      ],
+      "bonus": 9
+    },
+    {
+      "round": 1241,
+      "date": "2026-09-12",
+      "numbers": [
+        7,
+        13,
+        16,
+        23,
+        24,
+        43
+      ],
+      "bonus": 9
+    },
+    {
+      "round": 1240,
+      "date": "2026-09-05",
+      "numbers": [
+        11,
+        13,
+        19,
+        20,
+        31,
+        44
+      ],
+      "bonus": 27
+    },
+    {
+      "round": 1239,
+      "date": "2026-08-29",
+      "numbers": [
+        11,
+        13,
+        22,
+        32,
+        33,
+        36
+      ],
+      "bonus": 8
+    },
     {
       "round": 1238,
       "date": "2026-08-22",
